@@ -142,3 +142,5 @@ textarea{resize:vertical}
 .clear.bad{background:var(--bad-bg);border-color:#c62828}
 td.badcell{color:#c62828;background:var(--bad-bg);font-weight:600}
 .clgrid .btn.yes{background:var(--ok);color:#fff;border-color:var(--ok)}
+.btn.mega{min-height:132px;font-size:30px;line-height:1.1;white-space:normal}
+.arrive.fillcard{margin-top:40px}

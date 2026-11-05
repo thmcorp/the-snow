@@ -22,7 +22,7 @@ const uuid = () => (crypto.randomUUID ? crypto.randomUUID() :
 let AUTH = LS.get("auth", null);            // {name, pin, role, session}
 let DATA = LS.get("data", null);            // last server state
 let OUTBOX = LS.get("outbox", []);          // pending writes [{action, data}]
-const UI = { tab: LS.get("tab", "run"), here: LS.get("here", null), from: "", to: "", allFeed: false,
+const UI = { tab: LS.get("tab", "home"), here: LS.get("here", null), from: "", to: "", allFeed: false,
   report: null, online: true, ownerData: null, gps: { status: "off", pos: null }, lastAuto: null, flushing: false };
 
 // ---------- formatting ----------
@@ -238,7 +238,7 @@ function viewRun() {
   const run = DATA.run;
   const here = UI.here ? PROPS[UI.here] : null;
   if (!run) {
-    return `<section class="arrive waiting">${gpsLine(false)}<div class="muted small">Your salt run starts by itself when you arrive at your first property.</div>${propSelect()}</section>${fillCard()}`;
+    return `<section class="arrive waiting">${gpsLine(false)}<div class="muted small">Start your run here or on Home. It also starts by itself when you pull into your first property.</div><button class="btn salt block huge" id="start-run">Start salt run</button>${propSelect()}</section>${fillCard()}`;
   }
   const mine = DATA.entries || [];
   const stops = new Set(mine.map(a => a.prop_id)).size, total = allProps().length;
@@ -250,8 +250,8 @@ function viewRun() {
       ${hereLogged.length ? `<div class="done-line">✓ Logged</div>
         <div class="logged">${hereLogged.map(e => `<button class="entry" data-entry="${e.id}">${e.area === "drives" ? "Parking lots" : "Walks"} · ${amtWord(e.amt)}</button>`).join("")}</div>` : ""}
       <div class="acts" style="${here.walks ? "" : "grid-template-columns:1fr"}">
-        <button class="btn salt huge" data-salted="drives">Salted parking lots</button>
-        ${here.walks ? `<button class="btn walk huge" data-salted="walks">Salted walkways</button>` : ""}
+        <button class="btn salt huge mega" data-salted="drives">Salted parking lots</button>
+        ${here.walks ? `<button class="btn walk huge mega" data-salted="walks">Salted walkways</button>` : ""}
       </div>
       ${owner ? `<button class="linkbtn" id="save-spot" style="align-self:flex-start">${here.lat != null ? "Update" : "Save"} GPS location for this property (stand on the lot)</button>` : ""}
     </section>` : `<section class="arrive waiting">${gpsLine(false)}</section>`;
@@ -260,6 +260,26 @@ function viewRun() {
     ${arrival}
     <section class="panel">${propSelect()}</section>
     ${fillCard()}`;
+}
+function viewStart() {
+  if (UI.report) return viewReport(UI.report);
+  const run = DATA.run, owner = AUTH.role === "owner";
+  const mine = DATA.entries || [], stops = new Set(mine.map(a => a.prop_id)).size;
+  const runCard = run
+    ? `<section class="arrive"><div class="gps"><span class="dot"></span>Salt run in progress</div>
+        <div><div class="addr-big">${esc(AUTH.name)}'s run</div><div class="muted small">Started ${fmtWhen(run.started)} · ${stops} stop${stops === 1 ? "" : "s"} salted</div></div>
+        <div class="acts"><button class="btn salt huge" data-go="run">Go to Salt</button><button class="btn bad huge" id="finish">Finish run</button></div></section>`
+    : `<section class="arrive waiting"><h2>Ready to salt?</h2><div class="muted small">Start your run when you head out. Finish it when you're done for the day.</div>
+        <button class="btn salt block huge" id="start-run">Start salt run</button></section>`;
+  let stormCard = "";
+  if (DATA.storm) {
+    const cm = {}; (DATA.clears || []).forEach(c => { (cm[c.prop_id] = cm[c.prop_id] || {})[c.part] = c; });
+    const all = allProps(); const done = all.filter(p => (p.walks ? ["drives", "walks"] : ["drives"]).every(a => (cm[p.id] || {})[a])).length;
+    stormCard = `<section class="panel"><h2>${esc(DATA.storm.name)}</h2><div class="muted small">Storm in progress · ${done} of ${all.length} properties fully cleared</div>
+      <button class="btn block" data-go="clear">Open clearing checklist</button></section>`;
+  }
+  const out = owner && (DATA.active_runs || []).length ? `<section class="panel"><h2>Out now</h2><div class="small">${DATA.active_runs.map(r => `<b>${esc(r.crew)}</b> · started ${hm(r.started)} · ${r.stops} stop${r.stops === 1 ? "" : "s"}`).join("<br>")}</div></section>` : "";
+  return `<section class="panel"><h2 style="margin:0">Hi, ${esc(AUTH.name)}</h2></section>${runCard}${stormCard}${out}`;
 }
 function viewReport(r) {
   return `<section class="arrive"><div class="gps"><span class="dot"></span>Run finished</div>
@@ -354,10 +374,10 @@ function render() {
   buildRoutes();
   tabs.hidden = false;
   who.innerHTML = `<span class="small"><b>${esc(AUTH.name)}</b>${AUTH.role === "owner" ? " · owner" : ""}</span><button class="linkbtn" id="logout">Sign out</button>`;
-  const owner = AUTH.role === "owner"; if (!owner && (UI.tab === "logs" || UI.tab === "crew")) UI.tab = "run";
+  const owner = AUTH.role === "owner"; if (!owner && (UI.tab === "logs" || UI.tab === "crew")) UI.tab = "home";
   document.getElementById("tab-logs").hidden = !owner; document.getElementById("tab-crew").hidden = !owner;
-  document.querySelector(".tabs .wrap").style.gridTemplateColumns = owner ? "repeat(4,1fr)" : "repeat(2,1fr)";
-  app.innerHTML = UI.tab === "clear" ? viewClear() : UI.tab === "logs" ? viewLogs() : UI.tab === "crew" ? viewCrew() : viewRun();
+  document.querySelector(".tabs .wrap").style.gridTemplateColumns = owner ? "repeat(5,1fr)" : "repeat(3,1fr)";
+  app.innerHTML = UI.tab === "home" ? viewStart() : UI.tab === "clear" ? viewClear() : UI.tab === "logs" ? viewLogs() : UI.tab === "crew" ? viewCrew() : viewRun();
   document.querySelectorAll(".tabs button").forEach(b => b.setAttribute("aria-selected", b.dataset.tab === UI.tab));
   setOnline(UI.online);
 }
@@ -440,7 +460,7 @@ async function signIn() {
     const r = await rpc("login", { session: AUTH.session }); AUTH.role = r.role;
     DATA = await rpc("state", { session: AUTH.session });
     LS.set("auth", AUTH); LS.set("data", DATA); LS.set("lastName", name);
-    UI.tab = "run"; UI.here = null; LS.del("here"); buildRoutes(); render(); startGps();
+    UI.tab = "home"; LS.set("tab", "home"); UI.here = null; LS.del("here"); buildRoutes(); render(); startGps();
   } catch (e) {
     AUTH = null; btn.disabled = false; btn.textContent = "Sign in";
     toast(e.code === "bad_pin" ? "That PIN isn't right." : e.code === "network" ? "No signal. Try again when you have service." : e.code === "config" ? "The app isn't connected to its database yet." : "Couldn't sign in (" + e.code + ").");
@@ -495,6 +515,8 @@ app.addEventListener("click", ev => {
       UI.report = { crew: DATA.run.crew, stops: new Set(mine.map(a => a.prop_id)).size, drives: mine.filter(a => a.area === "drives").length, walks: mine.filter(a => a.area === "walks").length };
       send("finish_run", { id: DATA.run.id, ts: nowIso() }); UI.here = null; LS.del("here"); render(); window.scrollTo(0, 0); }); return; }
   if (t.id === "new-run") { UI.report = null; render(); return; }
+  if (t.id === "start-run") { if (!DATA.run) send("start_run", { id: uuid(), ts: nowIso() }); UI.tab = "run"; LS.set("tab", "run"); startGps(); render(); window.scrollTo(0, 0); toast("Salt run started"); return; }
+  if (t.dataset.go) { UI.tab = t.dataset.go; LS.set("tab", UI.tab); render(); window.scrollTo(0, 0); return; }
   if (t.id === "save-spot") {
     const pos = UI.gps.pos; if (!pos) { toast("Waiting for GPS. Make sure location is allowed."); startGps(); return; }
     rpc("set_coords", { prop_id: UI.here, lat: pos.lat, lng: pos.lng }).then(() => { toast("Location saved for this property"); refresh(); }).catch(() => toast("Couldn't save the location. Try again with signal."));
