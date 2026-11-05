@@ -351,16 +351,21 @@ function viewLogs() {
 function viewCrew() {
   const ss = DATA.sessions || []; const runs = DATA.active_runs || [];
   const stale = x => Date.now() - new Date(x.last_seen).getTime() > 12 * 3600e3;
-  const on = ss.filter(x => !x.signed_out && !stale(x)), off = ss.filter(x => x.signed_out || stale(x)).slice(0, 20);
-  const row = x => { const run = runs.find(r => r.crew === x.name); const here = x.here && PROPS[x.here] ? PROPS[x.here].addr : null;
-    const isOn = !x.signed_out && !stale(x);
+  const live = x => !x.signed_out && !stale(x);
+  // One box per person: keep their most recent session, preferring one that is still signed in.
+  const people = {}; ss.forEach(x => { const k = x.name.trim().toLowerCase(), cur = people[k];
+    if (!cur || (live(x) && !live(cur)) || (live(x) === live(cur) && x.last_seen > cur.last_seen)) people[k] = x; });
+  const list = Object.values(people).sort((a, b) => b.last_seen.localeCompare(a.last_seen));
+  const on = list.filter(live), off = list.filter(x => !live(x)).slice(0, 20);
+  const row = x => { const run = runs.find(r => r.crew.trim().toLowerCase() === x.name.trim().toLowerCase()); const here = x.here && PROPS[x.here] ? PROPS[x.here].addr : null;
+    const isOn = live(x);
     return `<div class="runitem"><div style="min-width:0"><b>${esc(x.name)}</b>${x.role === "owner" ? ' <span class="muted small">owner</span>' : ""}
       <div class="muted small">Signed in ${fmtWhen(x.signed_in)}${x.signed_out ? ` · signed out ${fmtWhen(x.signed_out)}` : ` · last seen ${fmtWhen(x.last_seen)}`}</div>
       ${run && isOn ? `<div class="small" style="color:var(--ok);font-weight:600">On the clock · ${run.stops} stop${run.stops === 1 ? "" : "s"}${here ? ` · at ${esc(here)}` : ""}</div>` : ""}</div>
       ${isOn ? '<span class="dot"></span>' : ""}</div>`; };
   const located = allProps().filter(p => p.lat != null).length;
   return `<section class="panel"><h2>Signed in now</h2><div class="muted small">${on.length} ${on.length === 1 ? "person" : "people"} signed in</div><div class="runs">${on.map(row).join("") || '<p class="muted">Nobody is signed in.</p>'}</div></section>
-    <section class="panel"><h2>Recently signed out</h2><div class="runs">${off.map(row).join("") || '<p class="muted" style="margin:0">Nobody yet.</p>'}</div></section>
+    <section class="panel"><h2>Signed out</h2><div class="runs">${off.map(row).join("") || '<p class="muted" style="margin:0">Nobody yet.</p>'}</div></section>
     <section class="panel"><h2>Property GPS locations</h2><div class="muted small">${located} of ${allProps().length} properties have a GPS location. The app uses these to open a stop by itself when a truck pulls in.</div>
       <button class="btn ghost" id="geocode">Find missing locations from addresses</button>
       <div class="muted small">For a spot-on location, stand on the lot, pick the property on the Salt tab and tap "Save GPS location for this property".</div></section>`;
