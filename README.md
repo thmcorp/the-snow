@@ -2,8 +2,8 @@
 
 Salt and clearing log for THM crews. It's a web app that drivers add to their phone's home screen.
 
-- **Salt:** the run starts by GPS when the truck reaches the first property. Drivers tap "Salted drive lanes" or "Salted walkways", then Full, Half, or a custom fraction. There's also a salt fill-up card (bulk or bags).
-- **Clearing:** the owner starts a storm, and every crew checks off drive lanes and walkways live.
+- **Salt:** the run starts by GPS when the truck reaches the first property. Drivers tap "Salted parking lots" or "Salted walkways", then Full, Half, or a custom fraction. There's also a salt fill-up card (bulk or bags).
+- **Clearing:** the owner starts a storm, and every crew checks off parking lots and walkways live.
 - **Logs (owner):** a live main log in the Excel sheet layout. The Excel download has three tabs: Main log, Salt fill-ups, and Log data.
 - **Crew (owner):** who's signed in, who's on a run, and where.
 

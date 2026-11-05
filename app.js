@@ -161,7 +161,7 @@ function sheetRows(entries) {
   return rows;
 }
 function tableHTML(entries) {
-  return `<div class="tbl-wrap"><table class="log"><thead><tr><th>Property</th><th>Salt Drives</th><th>Salt Walks</th></tr></thead><tbody>${
+  return `<div class="tbl-wrap"><table class="log"><thead><tr><th>Property</th><th>Salt Parking Lots</th><th>Salt Walks</th></tr></thead><tbody>${
     sheetRows(entries).map(r => r.heading ? `<tr class="rh"><td colspan="3">${esc(r.heading)}</td></tr>` :
       `<tr><td>${esc(r.prop)}</td><td class="t${r.fd ? " fresh" : ""}">${esc(r.drives)}</td>${r.nowalk ? `<td class="nowalk" title="No walkway salting"></td>` : `<td class="t${r.fw ? " fresh" : ""}">${esc(r.walks)}</td>`}</tr>`).join("")}</tbody></table></div>`;
 }
@@ -171,7 +171,7 @@ function dataRows(od) {
   return [...salt, ...clr].sort((a, b) => a.ts.localeCompare(b.ts));
 }
 const fillWord = x => x.kind === "bulk" ? `Bulk${x.yard ? " · " + x.yard : ""}` : `Bags · ${x.bags || "?"}${x.yard ? " · " + x.yard : ""}`;
-const areaWord = r => r.area === "walks" ? "Walkways" : r.type === "Clearing" ? "Parking lots" : "Drive lanes";
+const areaWord = r => r.area === "walks" ? "Walkways" : "Parking lots";
 const clearWord = a => a === "drives" ? "Parking lots" : "Walkways";
 const propName = id => (PROPS[id] ? PROPS[id].addr : id);
 function rangeName(od) {
@@ -182,7 +182,7 @@ function rangeName(od) {
 }
 function exportXlsx(od) {
   if (typeof XLSX === "undefined") { toast("Excel export didn't load. Check your connection and try again."); return; }
-  const aoa = [["Property", "", "Salt Drives", "Salt Walks"], []];
+  const aoa = [["Property", "", "Salt Parking Lots", "Salt Walks"], []];
   sheetRows(od.entries).forEach(r => { if (r.heading) { if (aoa.length > 2) aoa.push([]); aoa.push([r.heading]); aoa.push([]); } else aoa.push([r.prop, "", r.drives, r.nowalk ? "" : r.walks]); });
   const ws = XLSX.utils.aoa_to_sheet(aoa); ws["!cols"] = [{ wch: 60 }, { wch: 2 }, { wch: 70 }, { wch: 55 }];
   const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Main log");
@@ -248,9 +248,9 @@ function viewRun() {
       ${gpsLine(true)}
       <div><div class="addr-big">${esc(here.addr)}</div>${here.client ? `<div class="client">${esc(here.client)}</div>` : ""}</div>
       ${hereLogged.length ? `<div class="done-line">✓ Logged</div>
-        <div class="logged">${hereLogged.map(e => `<button class="entry" data-entry="${e.id}">${e.area === "drives" ? "Drives" : "Walks"} · ${amtWord(e.amt)}</button>`).join("")}</div>` : ""}
+        <div class="logged">${hereLogged.map(e => `<button class="entry" data-entry="${e.id}">${e.area === "drives" ? "Parking lots" : "Walks"} · ${amtWord(e.amt)}</button>`).join("")}</div>` : ""}
       <div class="acts" style="${here.walks ? "" : "grid-template-columns:1fr"}">
-        <button class="btn salt huge" data-salted="drives">Salted drive lanes</button>
+        <button class="btn salt huge" data-salted="drives">Salted parking lots</button>
         ${here.walks ? `<button class="btn walk huge" data-salted="walks">Salted walkways</button>` : ""}
       </div>
       ${owner ? `<button class="linkbtn" id="save-spot" style="align-self:flex-start">${here.lat != null ? "Update" : "Save"} GPS location for this property (stand on the lot)</button>` : ""}
@@ -264,7 +264,7 @@ function viewRun() {
 function viewReport(r) {
   return `<section class="arrive"><div class="gps"><span class="dot"></span>Run finished</div>
     <h2>Nice work, ${esc(r.crew)}</h2>
-    <div class="stats"><div class="stat"><b>${r.stops}</b>stops</div><div class="stat"><b>${r.drives}</b>drive lanes</div><div class="stat"><b>${r.walks}</b>walkways</div></div>
+    <div class="stats"><div class="stat"><b>${r.stops}</b>stops</div><div class="stat"><b>${r.drives}</b>parking lots</div><div class="stat"><b>${r.walks}</b>walkways</div></div>
     <div class="muted">Everything you logged is already in the main log.</div>
     <button class="btn salt block" id="new-run">Done</button></section>`;
 }
@@ -395,14 +395,14 @@ function openClearCheck(pid, part) {
 }
 function openQuick(pid, area) {
   const p = PROPS[pid];
-  modal(`<div class="muted small" style="text-transform:uppercase;letter-spacing:.08em;font-weight:700">${area === "drives" ? "Drive lanes" : "Walkways"}</div><h2 style="margin-top:-8px">How much?</h2><div class="muted small" style="margin-top:-8px">${esc(p.addr)}</div>
+  modal(`<div class="muted small" style="text-transform:uppercase;letter-spacing:.08em;font-weight:700">${area === "drives" ? "Parking lots" : "Walkways"}</div><h2 style="margin-top:-8px">How much?</h2><div class="muted small" style="margin-top:-8px">${esc(p.addr)}</div>
     <div class="qgrid"><button class="btn salt huge" data-q="1">Full</button><button class="btn salt huge" data-q="0.5">Half</button><button class="btn ghost huge" data-q="custom">Custom</button></div>
     <div id="custom-wrap" hidden><div class="row"><label class="f" for="q-other">Fraction<input type="number" id="q-other" step="0.05" min="0.05" max="1" placeholder=".3" inputmode="decimal"></label><button class="btn salt" id="q-log" style="align-self:end">Log it</button></div></div>
     <details><summary class="muted small">Add a note</summary><input type="text" id="q-note" placeholder="e.g. back, extra removal time" style="margin-top:8px"></details>
     <button class="btn ghost block" id="cancel">Cancel</button>`, (t, close) => {
     const log = amt => { const note = (document.getElementById("q-note").value || "").trim(); close();
       send("salt", { id: uuid(), run_id: DATA.run ? DATA.run.id : null, prop_id: p.id, area, amt, note, ts: nowIso() });
-      toast(`Logged ${area === "drives" ? "drive lanes" : "walkways"} · ${amtWord(amt)}`); };
+      toast(`Logged ${area === "drives" ? "parking lots" : "walkways"} · ${amtWord(amt)}`); };
     const q = t.closest("[data-q]");
     if (q) { if (q.dataset.q === "custom") { document.getElementById("custom-wrap").hidden = false; document.getElementById("q-other").focus(); } else log(+q.dataset.q); return; }
     if (t.id === "q-log") { const v = parseFloat(document.getElementById("q-other").value); if (!(v > 0 && v <= 1)) { toast("Enter a fraction between .05 and 1"); return; } log(v); }
@@ -411,7 +411,7 @@ function openQuick(pid, area) {
 function openEdit(e) {
   const p = PROPS[e.prop_id]; let amt = +e.amt; const presets = [[1, "Full"], [0.5, "Half"]];
   const isPreset = presets.some(x => x[0] === amt);
-  modal(`<div class="muted small" style="text-transform:uppercase;letter-spacing:.08em;font-weight:700">Fix ${e.area === "drives" ? "drive lanes" : "walkways"}</div><h2>${esc(p ? p.addr : e.prop_id)}</h2>
+  modal(`<div class="muted small" style="text-transform:uppercase;letter-spacing:.08em;font-weight:700">Fix ${e.area === "drives" ? "parking lots" : "walkways"}</div><h2>${esc(p ? p.addr : e.prop_id)}</h2>
     <div class="amts" style="grid-template-columns:repeat(3,1fr)">${presets.map(([v, l]) => `<button class="amt${amt === v ? " on" : ""}" data-amt="${v}">${l}</button>`).join("")}<button class="amt${isPreset ? "" : " on"}" data-amt="other">Custom</button></div>
     <label class="f" for="amt-other" id="other-wrap" ${isPreset ? "hidden" : ""}>Fraction<input type="number" id="amt-other" step="0.05" min="0.05" max="1" value="${isPreset ? "" : amt}" inputmode="decimal"></label>
     <label class="f" for="note">Note<input type="text" id="note" value="${esc(e.note || "")}"></label>
