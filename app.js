@@ -238,7 +238,7 @@ function viewRun() {
   const run = DATA.run;
   const here = UI.here ? PROPS[UI.here] : null;
   if (!run) {
-    return `<section class="arrive waiting">${gpsLine(false)}<div class="muted small">Start your run here or on Home. It also starts by itself when you pull into your first property.</div><button class="btn salt block huge" id="start-run">Start salt run</button>${propSelect()}</section>${fillCard()}`;
+    return `<section class="arrive waiting">${gpsLine(false)}<div class="muted small">Start your run on Home. If you forget, it starts by itself when you pull into your first property.</div>${propSelect()}</section>${fillCard()}`;
   }
   const mine = DATA.entries || [];
   const stops = new Set(mine.map(a => a.prop_id)).size, total = allProps().length;
