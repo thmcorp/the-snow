@@ -165,7 +165,7 @@ function sheetRows(entries) {
   return rows;
 }
 function tableHTML(entries) {
-  return `<div class="tbl-wrap"><table class="log"><thead><tr><th>Property</th><th>Salt Parking Lots</th><th>Salt Walks</th></tr></thead><tbody>${
+  return `<div class="tbl-wrap"><table class="log"><thead><tr><th>Property</th><th>Salt Parking Lot(s)</th><th>Salt Walks</th></tr></thead><tbody>${
     sheetRows(entries).map(r => r.heading ? `<tr class="rh"><td colspan="3">${esc(r.heading)}</td></tr>` :
       `<tr><td>${esc(r.prop)}</td><td class="t${r.fd ? " fresh" : ""}">${esc(r.drives)}</td>${r.nowalk ? `<td class="nowalk" title="No walkway salting"></td>` : `<td class="t${r.fw ? " fresh" : ""}">${esc(r.walks)}</td>`}</tr>`).join("")}</tbody></table></div>`;
 }
@@ -176,8 +176,8 @@ function dataRows(od) {
   return [...salt, ...clr, ...nt].sort((a, b) => a.ts.localeCompare(b.ts));
 }
 const fillWord = x => x.kind && x.kind.startsWith("left") ? `Left on truck · ${x.kind === "left_bulk" ? "sander" : "bags"}${x.note ? " · " + x.note : ""}` : x.kind && x.kind.startsWith("empty") ? `Emptied ${x.kind === "empty_bulk" ? "sander" : "bags"}${x.yard ? " · " + x.yard : ""}${x.note ? " · " + x.note : ""}` : x.kind === "bulk" ? `Sander${x.yard ? " · " + x.yard : ""}` : `Bags · ${x.bags || "?"}${x.yard ? " · " + x.yard : ""}`;
-const areaWord = r => r.area === "walks" ? "Walkways" : r.area === "" ? "" : "Parking lots";
-const clearWord = a => a === "drives" ? "Parking lots" : "Walkways";
+const areaWord = r => r.area === "walks" ? "Walkways" : r.area === "" ? "" : "Parking Lot(s)";
+const clearWord = a => a === "drives" ? "Parking Lot(s)" : "Walkways";
 const propName = id => (PROPS[id] ? PROPS[id].addr : id);
 function rangeName(od) {
   const ts = [...od.entries, ...od.fills, ...od.clear_log].map(a => a.ts).sort();
@@ -187,7 +187,7 @@ function rangeName(od) {
 }
 function exportXlsx(od) {
   if (typeof XLSX === "undefined") { toast("Excel export didn't load. Check your connection and try again."); return; }
-  const aoa = [["Property", "", "Salt Parking Lots", "Salt Walks"], []];
+  const aoa = [["Property", "", "Salt Parking Lot(s)", "Salt Walks"], []];
   sheetRows(od.entries).forEach(r => { if (r.heading) { if (aoa.length > 2) aoa.push([]); aoa.push([r.heading]); aoa.push([]); } else aoa.push([r.prop, "", r.drives, r.nowalk ? "" : r.walks]); });
   const ws = XLSX.utils.aoa_to_sheet(aoa); ws["!cols"] = [{ wch: 60 }, { wch: 2 }, { wch: 70 }, { wch: 55 }];
   const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Main log");
@@ -247,7 +247,7 @@ function myLogCard() {
   const g = []; mine.slice().sort((a, b) => a.ts.localeCompare(b.ts)).forEach(e => { let x = g.find(y => y.id === e.prop_id); if (!x) g.push(x = { id: e.prop_id, items: [] }); x.items.push(e); });
   return `<section class="panel"><h2>Shift Log</h2><div class="muted small">${g.length} propert${g.length === 1 ? "y" : "ies"} salted · tap a property to see its log, then tap an entry to fix it</div>
     <div class="proplist">${g.map(x => `<details class="propitem"${UI.openLog === x.id ? " open" : ""} data-log="${x.id}"><summary><span>${esc(propName(x.id))}</span><span class="muted small">${x.items.length} entr${x.items.length === 1 ? "y" : "ies"}</span></summary>
-      <div class="logged">${x.items.map(e => `<button class="entry" data-entry="${e.id}">${e.area === "drives" ? "Parking lots" : "Walks"} · ${hm(e.ts)} · ${amtWord(e.amt)}${e.note ? " · " + esc(e.note) : ""}</button>`).join("")}</div>
+      <div class="logged">${x.items.map(e => `<button class="entry" data-entry="${e.id}">${e.area === "drives" ? "Parking Lot(s)" : "Walks"} · ${hm(e.ts)} · ${amtWord(e.amt)}${e.note ? " · " + esc(e.note) : ""}</button>`).join("")}</div>
       <button class="btn ghost block" data-lognote="${x.id}" style="margin-top:8px">${x.items.some(e => e.note) ? "Edit note" : "Add note"}</button></details>`).join("")}</div></section>`;
 }
 function viewRun() {
@@ -263,9 +263,9 @@ function viewRun() {
   const arrival = here ? `<section class="arrive">
       ${gpsLine(true)}
       <div><div class="addr-big">${esc(here.addr)}</div>${here.client ? `<div class="client">${esc(here.client)}</div>` : ""}</div>
-      ${hereLogged.length ? `<div class="logged">${hereLogged.map(e => `<button class="entry" data-entry="${e.id}">${e.area === "drives" ? "Parking lots" : "Walks"} · ${hm(e.ts)} · ${amtWord(e.amt)}</button>`).join("")}</div>` : ""}
+      ${hereLogged.length ? `<div class="logged">${hereLogged.map(e => `<button class="entry" data-entry="${e.id}">${e.area === "drives" ? "Parking Lot(s)" : "Walks"} · ${hm(e.ts)} · ${amtWord(e.amt)}</button>`).join("")}</div>` : ""}
       <div class="acts" style="${here.walks ? "" : "grid-template-columns:1fr"}">
-        <button class="btn salt huge" data-salted="drives">Salted Parking Lots</button>
+        <button class="btn salt huge" data-salted="drives">Salted Parking Lot(s)</button>
         ${here.walks ? `<button class="btn walk huge" data-salted="walks">Salted Walkways</button>` : ""}
       </div>
       ${owner ? `<button class="linkbtn" id="save-spot" style="align-self:flex-start">${here.lat != null ? "Update" : "Save"} GPS location for this property (stand on the lot)</button>` : ""}
@@ -303,7 +303,7 @@ function viewStart() {
 setInterval(() => document.querySelectorAll(".elapsed").forEach(e => { e.textContent = dur(Date.now() - new Date(e.dataset.since)); }), 20000);
 function viewReport(r) {
   const byProp = []; (r.entries || []).forEach(e => { let g = byProp.find(x => x.id === e.prop_id); if (!g) byProp.push(g = { id: e.prop_id, items: [] }); g.items.push(e); });
-  const rows = byProp.map(g => `<div class="sumrow"><div style="font-weight:700">${esc(propName(g.id))}</div><div class="logged">${g.items.map(e => `<span class="entry">${e.area === "drives" ? "Parking lots" : "Walks"} · ${amtWord(e.amt)}${e.note ? " (" + esc(e.note) + ")" : ""}</span>`).join("")}</div></div>`).join("");
+  const rows = byProp.map(g => `<div class="sumrow"><div style="font-weight:700">${esc(propName(g.id))}</div><div class="logged">${g.items.map(e => `<span class="entry">${e.area === "drives" ? "Parking Lot(s)" : "Walks"} · ${amtWord(e.amt)}${e.note ? " (" + esc(e.note) + ")" : ""}</span>`).join("")}</div></div>`).join("");
   return `<section class="arrive shift"><div class="gps"><span class="dot off"></span>Clocked out</div>
     <div class="muted small" style="font-weight:600;text-transform:uppercase;letter-spacing:.06em">Time worked</div>
     <div class="clock">${esc(r.time || "")}</div>
@@ -326,13 +326,13 @@ function pastStorms() {
     const ok = p => parts(p).every(a => (cm[p.id] || {})[a]); const n = all.filter(ok).length;
     const cell = (p, a) => { if (a === "walks" && !p.walks) return `<td class="nowalk"></td>`; const c = (cm[p.id] || {})[a]; return c ? `<td class="t${c.note ? " badcell" : ""}">${c.note ? "✗" : "✓"} ${md(c.ts)} ${hm(c.ts)} · ${esc(c.crew)}${c.note ? ` · ${esc(c.note)}` : ""}</td>` : `<td class="t muted" style="font-weight:600">Not checked</td>`; };
     return `<details class="storm"><summary><b>${esc(st.name)}</b><span class="muted small">${fmtWhen(st.started)} to ${fmtWhen(st.ended)} · ${n}/${all.length} fully cleared</span></summary>
-      <div class="tbl-wrap"><table class="log"><thead><tr><th>Property</th><th>Parking lots</th><th>Walkways</th></tr></thead><tbody>${ROUTES.map(r => `<tr class="rh"><td colspan="3">${esc(r.name)}</td></tr>` + r.props.map(p => `<tr><td>${esc(p.addr)}</td>${saltOnly(p) ? `<td colspan="2" class="muted small">Salt only, no clearing</td>` : cell(p, "drives") + cell(p, "walks")}</tr>`).join("")).join("")}</tbody></table></div></details>`;
+      <div class="tbl-wrap"><table class="log"><thead><tr><th>Property</th><th>Parking Lot(s)</th><th>Walkways</th></tr></thead><tbody>${ROUTES.map(r => `<tr class="rh"><td colspan="3">${esc(r.name)}</td></tr>` + r.props.map(p => `<tr><td>${esc(p.addr)}</td>${saltOnly(p) ? `<td colspan="2" class="muted small">Salt only, no clearing</td>` : cell(p, "drives") + cell(p, "walks")}</tr>`).join("")).join("")}</tbody></table></div></details>`;
   }).join("") : `<p class="muted" style="margin:0">When you end a storm, its checklist is saved here.</p>`}</section>`;
 }
 function viewClear() {
   const owner = AUTH.role === "owner";
   if (!DATA.storm) return clockBar() + (owner ? `<section class="panel"><h2>Storm clearing checklist</h2>
-    <p class="muted" style="margin:0">Start a storm and every crew's phone gets the checklist. Crews check off parking lots and walkways at each property as they're cleared.</p>
+    <p class="muted" style="margin:0">Start a storm and every crew's phone gets the checklist. Crews check off parking lot(s) and walkways at each property as they're cleared.</p>
     <label class="f" for="storm-name">Storm name<input type="text" id="storm-name" placeholder="e.g. Dec 12 storm"></label>
     <button class="btn block" id="storm-start">Start storm</button></section>` + pastStorms()
     : `<section class="arrive waiting"><h2>No storm in progress</h2><div class="muted">The clearing checklist shows up here when a storm is started.</div></section>`);
@@ -528,7 +528,7 @@ function openClearCheck(pid, part) {
 }
 function openQuick(pid, area) {
   const p = PROPS[pid];
-  modal(`<div class="muted small" style="text-transform:uppercase;letter-spacing:.08em;font-weight:700">${area === "drives" ? "Parking lots" : "Walkways"}</div><h2 style="margin-top:-8px">How much?</h2><div class="muted small" style="margin-top:-8px">${esc(p.addr)}</div>
+  modal(`<div class="muted small" style="text-transform:uppercase;letter-spacing:.08em;font-weight:700">${area === "drives" ? "Parking Lot(s)" : "Walkways"}</div><h2 style="margin-top:-8px">How much?</h2><div class="muted small" style="margin-top:-8px">${esc(p.addr)}</div>
     <div class="qgrid"><button class="btn salt huge" data-q="1">Full</button><button class="btn salt huge" data-q="0.5">Half</button><button class="btn ghost huge" data-q="custom">Custom</button></div>
     <div id="custom-wrap" hidden><div class="row"><label class="f" for="q-other">Fraction<input type="number" id="q-other" step="0.05" min="0.05" max="1" placeholder=".3" inputmode="decimal"></label><button class="btn salt" id="q-log" style="align-self:end">Log it</button></div></div>
     <details><summary class="muted small">Add a note</summary><input type="text" id="q-note" placeholder="e.g. back, extra removal time" style="margin-top:8px"></details>
@@ -536,7 +536,7 @@ function openQuick(pid, area) {
     const log = amt => { const note = (document.getElementById("q-note").value || "").trim(); close();
       if (!DATA.run) send("start_run", { id: uuid(), ts: nowIso() });
       send("salt", { id: uuid(), run_id: DATA.run ? DATA.run.id : null, prop_id: p.id, area, amt, note, ts: nowIso() });
-      toast(`Logged ${area === "drives" ? "parking lots" : "walkways"} · ${amtWord(amt)}`); };
+      toast(`Logged ${area === "drives" ? "parking lot(s)" : "walkways"} · ${amtWord(amt)}`); };
     const q = t.closest("[data-q]");
     if (q) { if (q.dataset.q === "custom") { document.getElementById("custom-wrap").hidden = false; document.getElementById("q-other").focus(); } else log(+q.dataset.q); return; }
     if (t.id === "q-log") { const v = parseFloat(document.getElementById("q-other").value); if (!(v > 0 && v <= 1)) { toast("Enter a fraction between .05 and 1"); return; } log(v); }
@@ -557,7 +557,7 @@ function openLogNote(pid) {
 function openEdit(e) {
   const p = PROPS[e.prop_id]; let amt = +e.amt; const presets = [[1, "Full"], [0.5, "Half"]];
   const isPreset = presets.some(x => x[0] === amt);
-  modal(`<div class="muted small" style="text-transform:uppercase;letter-spacing:.08em;font-weight:700">Fix ${e.area === "drives" ? "parking lots" : "walkways"}</div><h2>${esc(p ? p.addr : e.prop_id)}</h2>
+  modal(`<div class="muted small" style="text-transform:uppercase;letter-spacing:.08em;font-weight:700">Fix ${e.area === "drives" ? "parking lot(s)" : "walkways"}</div><h2>${esc(p ? p.addr : e.prop_id)}</h2>
     <div class="amts" style="grid-template-columns:repeat(3,1fr)">${presets.map(([v, l]) => `<button class="amt${amt === v ? " on" : ""}" data-amt="${v}">${l}</button>`).join("")}<button class="amt${isPreset ? "" : " on"}" data-amt="other">Custom</button></div>
     <label class="f" for="amt-other" id="other-wrap" ${isPreset ? "hidden" : ""}>Fraction<input type="number" id="amt-other" step="0.05" min="0.05" max="1" value="${isPreset ? "" : amt}" inputmode="decimal"></label>
     <label class="f" for="note">Note<input type="text" id="note" value="${esc(e.note || "")}"></label>
