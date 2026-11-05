@@ -233,9 +233,9 @@ function propSelect() {
 function fillCard() {
   const mine = DATA.run ? (DATA.fills || []).filter(x => new Date(x.ts) >= new Date(DATA.run.started) - 1000).sort((a, b) => a.ts.localeCompare(b.ts)) : [];
   return `<section class="arrive fillcard"><div class="gps fillhead">Salt fill-up</div>
-    <div class="muted small">Tap when you load the truck.</div>
+    <div class="muted small" style="font-weight:600">Tap when you load the truck.</div>
     <div class="acts"><button class="btn salt huge" data-fill="bulk">Sander</button><button class="btn walk huge" data-fill="bags">Bags</button></div>
-    ${mine.length ? `<div class="muted small" style="font-weight:600;margin-top:4px">Fill-ups this shift (tap to fix)</div><div class="logged">${mine.map(x => `<button class="entry" data-fillfix="${x.id}">${esc(fillWord(x).replace(/^(Sander|Bags)/, m => m + " · " + hm(x.ts)))}</button>`).join("")}</div>` : ""}
+    ${mine.length ? `<div class="muted small" style="font-weight:600">Fill-ups this shift (tap to fix)</div><div class="logged">${mine.map(x => `<button class="entry" data-fillfix="${x.id}">${esc(fillWord(x).replace(/^(Sander|Bags)/, m => m + " · " + hm(x.ts)))}</button>`).join("")}</div>` : ""}
   </section>`;
 }
 function clockBar() {
@@ -247,7 +247,8 @@ function myLogCard() {
   const g = []; mine.slice().sort((a, b) => a.ts.localeCompare(b.ts)).forEach(e => { let x = g.find(y => y.id === e.prop_id); if (!x) g.push(x = { id: e.prop_id, items: [] }); x.items.push(e); });
   return `<section class="panel"><h2>Shift Log</h2><div class="muted small">${g.length} propert${g.length === 1 ? "y" : "ies"} salted · tap a property to see its log, then tap an entry to fix it</div>
     <div class="proplist">${g.map(x => `<details class="propitem"${UI.openLog === x.id ? " open" : ""} data-log="${x.id}"><summary><span>${esc(propName(x.id))}</span><span class="muted small">${x.items.length} entr${x.items.length === 1 ? "y" : "ies"}</span></summary>
-      <div class="logged">${x.items.map(e => `<button class="entry" data-entry="${e.id}">${e.area === "drives" ? "Parking lots" : "Walks"} · ${hm(e.ts)} · ${amtWord(e.amt)}</button>`).join("")}</div></details>`).join("")}</div></section>`;
+      <div class="logged">${x.items.map(e => `<button class="entry" data-entry="${e.id}">${e.area === "drives" ? "Parking lots" : "Walks"} · ${hm(e.ts)} · ${amtWord(e.amt)}${e.note ? " · " + esc(e.note) : ""}</button>`).join("")}</div>
+      <button class="btn ghost block" data-lognote="${x.id}" style="margin-top:8px">${x.items.some(e => e.note) ? "Edit note" : "Add note"}</button></details>`).join("")}</div></section>`;
 }
 function viewRun() {
   const run = DATA.run;
@@ -541,6 +542,18 @@ function openQuick(pid, area) {
     if (t.id === "q-log") { const v = parseFloat(document.getElementById("q-other").value); if (!(v > 0 && v <= 1)) { toast("Enter a fraction between .05 and 1"); return; } log(v); }
   });
 }
+function openLogNote(pid) {
+  const items = (DATA.entries || []).filter(e => e.prop_id === pid).sort((a, b) => a.ts.localeCompare(b.ts)); if (!items.length) return;
+  const last = items[items.length - 1]; const cur = items.map(e => e.note).filter(Boolean).pop() || "";
+  modal(`<h2>Note</h2><div class="muted small" style="margin-top:-8px">${esc(propName(pid))}</div>
+    <div class="notewrap"><label class="f" for="log-note">Anything to note at this property?<textarea id="log-note" rows="3" placeholder="e.g. extra removal time, came back at 1115">${esc(cur)}</textarea></label>
+    <button class="btn salt block" id="log-note-save">Save note</button></div>
+    <button class="btn ghost block" id="cancel">Cancel</button>`, (t, close) => {
+    if (t.id !== "log-note-save") return;
+    const n = document.getElementById("log-note").value.trim(); const tgt = items.filter(e => e.note).pop() || last;
+    close(); send("salt_edit", { id: tgt.id, amt: tgt.amt, note: n, ts: tgt.ts }); toast(n ? "Note saved" : "Note removed"); });
+  document.getElementById("log-note").focus();
+}
 function openEdit(e) {
   const p = PROPS[e.prop_id]; let amt = +e.amt; const presets = [[1, "Full"], [0.5, "Half"]];
   const isPreset = presets.some(x => x[0] === amt);
@@ -628,6 +641,7 @@ app.addEventListener("click", ev => {
   const t = ev.target.closest("button"); if (!t) return;
   if (t.id === "login") { signIn(); return; }
   if (t.dataset.salted) { openQuick(UI.here, t.dataset.salted); return; }
+  if (t.dataset.lognote) { openLogNote(t.dataset.lognote); return; }
   if (t.dataset.entry) { const e = DATA.entries.find(a => a.id === t.dataset.entry); if (e) openEdit(e); return; }
   if (t.id === "finish") { openEndShift(); return; }
   if (t.id === "new-run") { UI.report = null; render(); return; }
