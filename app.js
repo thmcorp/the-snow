@@ -112,12 +112,13 @@ async function flush() {
   } finally { UI.flushing = false; }
   if (!OUTBOX.length) refresh();
 }
+function loadMaps() { rpc("list", {}, "site_map").then(l => { const k = JSON.stringify(l || []); if (k !== JSON.stringify(UI.maps || [])) { UI.maps = l || []; LS.set("maps", UI.maps); render(); } }).catch(() => {}); }
 async function refresh() {
   if (!AUTH) return;
   try {
     const st = await rpc("state", { session: AUTH.session, here: UI.here || null });
     DATA = st; OUTBOX.forEach(applyLocal); LS.set("data", DATA);
-    rpc("list", {}, "site_map").then(l => { const k = JSON.stringify(l || []); if (k !== JSON.stringify(UI.maps || [])) { UI.maps = l || []; LS.set("maps", UI.maps); render(); } }).catch(() => {});
+    loadMaps();
     if (AUTH.role !== st.role) { AUTH.role = st.role; LS.set("auth", AUTH); }
     setOnline(true);
     if (AUTH.role === "owner" && UI.tab === "logs") await loadOwnerData();
@@ -244,9 +245,9 @@ const mapsQ = p => p.lat != null ? `${p.lat},${p.lng}` : p.addr.replace(/Smtihfi
 const mapsBtns = p => { const q = encodeURIComponent(mapsQ(p)), a = encodeURIComponent(p.addr.replace(/Smtihfield/i, "Smithfield"));
   const ua = navigator.userAgent, ios = /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1), android = /Android/.test(ua);
   const href = ios ? `https://maps.apple.com/?daddr=${q}&q=${a}` : android ? `geo:0,0?q=${q}` : `https://www.google.com/maps/dir/?api=1&destination=${q}`;
-  return `<a class="btn yes block huge"${android ? "" : ' target="_blank" rel="noopener"'} href="${href}">Go</a>`; };
+  return `<a class="btn yes huge"${android ? "" : ' target="_blank" rel="noopener"'} href="${href}">Go</a>`; };
 const hasMap = id => (UI.maps || LS.get("maps") || []).includes(id);
-const siteBtns = p => `<div class="sitebtns"><button class="btn ghost sm" data-maps="${p.id}">Directions</button>${hasMap(p.id) ? `<button class="btn ghost sm" data-sitemap="${p.id}">Site Map</button>` : ""}</div>`;
+const siteBtns = p => `<div class="sitebtns"><button class="btn yes sm" data-maps="${p.id}">Directions</button>${hasMap(p.id) ? `<button class="btn walk sm" data-sitemap="${p.id}">Site Map</button>` : ""}</div>`;
 async function openSiteMap(pid) {
   const p = PROPS[pid]; if (!p) return;
   modal(`<h2>Site Map</h2><div style="font-weight:600;margin-top:-8px">${esc(p.addr)}</div><p class="muted" style="margin:0">Loading…</p><button class="btn ghost block" id="cancel">Close</button>`, () => {});
@@ -272,7 +273,7 @@ function pickSiteMap(pid) {
 }
 function openMaps(pid) {
   const p = PROPS[pid]; if (!p) return;
-  modal(`<h2>Directions</h2><div style="font-weight:600;margin-top:-8px">${esc(p.addr)}</div>${mapsBtns(p)}<button class="btn ghost block" id="cancel">Cancel</button>`, (t, close) => { if (t.closest("a")) setTimeout(close, 300); });
+  modal(`<h2>Directions</h2><div style="font-weight:600;margin-top:-8px">${esc(p.addr)}</div><div class="gogrid">${mapsBtns(p)}</div><button class="btn ghost block" id="cancel">Cancel</button>`, (t, close) => { if (t.closest("a")) setTimeout(close, 300); });
 }
 function clockBar() {
   const run = DATA && DATA.run; if (!run) return "";
@@ -335,7 +336,7 @@ function viewStart() {
     <button class="tile clear-tile" data-go="clear"><span class="tile-h">Clearing</span>${storm}</button></div>`;
   const out = owner && (DATA.active_runs || []).length ? `<section class="panel"><h2>On the clock now</h2><div class="small">${DATA.active_runs.map(r => `<b>${esc(r.crew)}</b> · ${dur(Date.now() - new Date(r.started))} since ${hm(r.started)} · ${r.stops} stop${r.stops === 1 ? "" : "s"}`).join("<br>")}</div></section>` : "";
   const dp = UI.dirProp && PROPS[UI.dirProp];
-  const dir = `<section class="panel"><h2>Directions</h2><label class="f bigpick" for="dir-prop">Pick a property<select id="dir-prop"><option value="">Select a property…</option>${ROUTES.map(r => `<optgroup label="${esc(r.name)}">${r.props.map(p => `<option value="${p.id}" ${p.id === UI.dirProp ? "selected" : ""}>${esc(p.addr)}</option>`).join("")}</optgroup>`).join("")}</select></label>${dp ? mapsBtns(dp) + (hasMap(dp.id) ? `<button class="btn ghost block" data-sitemap="${dp.id}">Site Map</button>` : "") + (owner ? `<div class="row"><button class="btn ghost" data-mapup="${dp.id}">${hasMap(dp.id) ? "Replace site map" : "Upload site map"}</button>${hasMap(dp.id) ? `<button class="btn ghost" data-maprm="${dp.id}">Remove</button>` : ""}</div>` : "") : ""}</section>`;
+  const dir = `<section class="panel"><h2>Directions</h2><label class="f bigpick" for="dir-prop">Pick a property<select id="dir-prop"><option value="">Select a property…</option>${ROUTES.map(r => `<optgroup label="${esc(r.name)}">${r.props.map(p => `<option value="${p.id}" ${p.id === UI.dirProp ? "selected" : ""}>${esc(p.addr)}</option>`).join("")}</optgroup>`).join("")}</select></label>${dp ? (hasMap(dp.id) ? `<div class="clgrid">${mapsBtns(dp)}<button class="btn walk huge" data-sitemap="${dp.id}">Site Map</button></div>` : `<div class="gogrid">${mapsBtns(dp)}</div>`) + (owner ? `<div class="row"><button class="btn ghost" data-mapup="${dp.id}">${hasMap(dp.id) ? "Replace site map" : "Upload site map"}</button>${hasMap(dp.id) ? `<button class="btn ghost" data-maprm="${dp.id}">Remove</button>` : ""}</div>` : "") : ""}</section>`;
   return `<section class="panel"><h2 style="margin:0">Hi, ${esc(AUTH.name)}</h2></section>${shift}${tiles}${dir}${out}`;
 }
 setInterval(() => document.querySelectorAll(".elapsed").forEach(e => { e.textContent = dur(Date.now() - new Date(e.dataset.since)); }), 20000);
@@ -707,7 +708,7 @@ async function signIn() {
     const r = await rpc("login", { session: AUTH.session }); AUTH.role = r.role;
     DATA = await rpc("state", { session: AUTH.session });
     LS.set("auth", AUTH); LS.set("data", DATA); LS.set("lastName", name);
-    UI.tab = "home"; LS.set("tab", "home"); UI.here = null; LS.del("here"); buildRoutes(); render(); startGps();
+    UI.tab = "home"; LS.set("tab", "home"); UI.here = null; LS.del("here"); buildRoutes(); render(); startGps(); loadMaps();
   } catch (e) {
     AUTH = null; btn.disabled = false; btn.textContent = "Sign in";
     toast(e.code === "bad_pin" ? "That PIN isn't right." : e.code === "network" ? "No signal. Try again when you have service." : e.code === "config" ? "The app isn't connected to its database yet." : "Couldn't sign in (" + e.code + ").");
