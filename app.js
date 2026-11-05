@@ -223,7 +223,7 @@ function gpsLine(onSite) {
 // ---------- views ----------
 function propSelect() {
   const done = new Set((DATA.entries || []).map(a => a.prop_id));
-  return `<label class="f" for="pick-prop">Or choose a property<select id="pick-prop"><option value="">Select a property…</option>${ROUTES.map(r => `<optgroup label="${esc(r.name)}">${r.props.map(p => `<option value="${p.id}" ${p.id === UI.here ? "selected" : ""}>${done.has(p.id) ? "✓ " : ""}${esc(p.addr)}</option>`).join("")}</optgroup>`).join("")}</select></label>`;
+  return `<label class="f bigpick" for="pick-prop">Or choose a property<select id="pick-prop"><option value="">Select a property…</option>${ROUTES.map(r => `<optgroup label="${esc(r.name)}">${r.props.map(p => `<option value="${p.id}" ${p.id === UI.here ? "selected" : ""}>${done.has(p.id) ? "✓ " : ""}${esc(p.addr)}</option>`).join("")}</optgroup>`).join("")}</select></label>`;
 }
 function fillCard() {
   const mine = (DATA.fills || []).filter(x => localDate(x.ts) === localDate(nowIso())).sort((a, b) => a.ts.localeCompare(b.ts));
@@ -250,8 +250,8 @@ function viewRun() {
       ${hereLogged.length ? `<div class="done-line">✓ Logged</div>
         <div class="logged">${hereLogged.map(e => `<button class="entry" data-entry="${e.id}">${e.area === "drives" ? "Parking lots" : "Walks"} · ${amtWord(e.amt)}</button>`).join("")}</div>` : ""}
       <div class="acts" style="${here.walks ? "" : "grid-template-columns:1fr"}">
-        <button class="btn salt huge mega" data-salted="drives">Salted parking lots</button>
-        ${here.walks ? `<button class="btn walk huge mega" data-salted="walks">Salted walkways</button>` : ""}
+        <button class="btn salt huge" data-salted="drives">Salted Parking Lots</button>
+        ${here.walks ? `<button class="btn walk huge" data-salted="walks">Salted Walkways</button>` : ""}
       </div>
       ${owner ? `<button class="linkbtn" id="save-spot" style="align-self:flex-start">${here.lat != null ? "Update" : "Save"} GPS location for this property (stand on the lot)</button>` : ""}
     </section>` : `<section class="arrive waiting">${gpsLine(false)}</section>`;
