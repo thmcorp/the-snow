@@ -393,7 +393,7 @@ function viewLogs() {
   return `<section class="panel"><div class="runbar"><div><h2>Main salt log</h2><div class="gps" style="margin-top:4px"><span class="dot"></span>Live${last ? ` · last entry ${fmtWhen(last.ts)} by ${esc(last.crew)}` : ""}</div></div></div>
     ${active.length ? `<div class="small">${active.map(r => `<b>${esc(r.crew)}</b> is on the clock · since ${hm(r.started)} · ${r.stops} stop${r.stops === 1 ? "" : "s"} so far`).join("<br>")}</div>` : `<div class="muted small">Nobody is on the clock right now.</div>`}
     <div class="muted small">New entries show up here within a few seconds of a driver tapping Salted. Entries from the last 15 minutes are highlighted.</div>
-    <div class="row"><label class="f" for="from">From<input type="date" id="from" value="${UI.from}"></label><label class="f" for="to">To<input type="date" id="to" value="${UI.to}"></label></div>
+    <div class="daterow"><label class="f" for="from">From<input type="date" id="from" value="${UI.from}"></label><label class="f" for="to">To<input type="date" id="to" value="${UI.to}"></label></div>
     <button class="btn salt" id="dl-range" ${any ? "" : "disabled"}>Download Excel log (${od.entries.length} entries)</button></section>
     ${tableHTML(od.entries)}
     <section class="panel"><h2>Salt fill-ups</h2><div class="muted small">When drivers loaded their trucks, newest first.</div>
@@ -421,7 +421,7 @@ function viewMine() {
   return `${clockBar()}<section class="arrive shift"><div class="muted small" style="font-weight:600;text-transform:uppercase;letter-spacing:.06em">Total hours${isWeek ? " · this week" : ""}</div>
     <div class="clock">${dur(total)}</div>
     <div class="muted small">${UI.myFrom ? nice(UI.myFrom) : "…"} to ${UI.myTo ? nice(UI.myTo) : "…"} · ${list.length} shift${list.length === 1 ? "" : "s"}${live ? " · includes your shift in progress" : ""}</div>
-    <div class="row"><label class="f" for="my-from">From<input type="date" id="my-from" value="${UI.myFrom || ""}"></label><label class="f" for="my-to">To<input type="date" id="my-to" value="${UI.myTo || ""}"></label></div>
+    <div class="daterow"><label class="f" for="my-from">From<input type="date" id="my-from" value="${UI.myFrom || ""}"></label><label class="f" for="my-to">To<input type="date" id="my-to" value="${UI.myTo || ""}"></label></div>
     ${isWeek ? "" : `<button class="btn ghost" id="my-week">Back to this week</button>`}</section>
     <section class="panel"><h2>My shifts</h2><div class="muted small">Tap a shift to see its log and fix an entry.</div>
     ${list.length ? `<div class="shiftlist">${list.map(r => `<div class="shiftrow" data-myshift="${r.id}" role="button" tabindex="0"><div><b>${md(r.started)}</b> · in ${hm(r.started)} · ${r.ended ? "out " + hm(r.ended) : '<b style="color:var(--ok)">on now</b>'}</div><div class="muted small">${dur(ms(r))} worked · ${r.stops} stop${r.stops === 1 ? "" : "s"} salted</div>${r.note ? `<div class="small" style="white-space:pre-wrap">Note: ${esc(r.note)}</div>` : ""}<div class="small" style="font-weight:700;color:var(--accent)">View log ›</div></div>`).join("")}</div>` : `<p class="muted" style="margin:0">No shifts in these dates.</p>`}</section>`;
