@@ -82,7 +82,7 @@ function applyLocal(item) {
     case "fill_delete": DATA.fills = DATA.fills.filter(f => f.id !== d.id); break;
     case "clear":
       DATA.clears = (DATA.clears || []).filter(c => !(c.prop_id === d.prop_id && c.part === d.part));
-      if (d.checked) DATA.clears.push({ storm_id: d.storm_id, prop_id: d.prop_id, part: d.part, crew: AUTH.name, ts: d.ts });
+      if (d.checked) DATA.clears.push({ storm_id: d.storm_id, prop_id: d.prop_id, part: d.part, crew: AUTH.name, ts: d.ts, note: d.note || "" });
       break;
     case "storm_end": DATA.storm = null; DATA.clears = []; break;
   }
@@ -167,10 +167,12 @@ function tableHTML(entries) {
 }
 function dataRows(od) {
   const salt = od.entries.map(a => ({ ts: a.ts, crew: a.crew, type: "Salt", prop: a.prop_id, area: a.area, detail: amtWord(a.amt) + (a.note ? " · " + a.note : "") }));
-  const clr = od.clear_log.map(c => ({ ts: c.ts, crew: c.crew, type: "Clearing", prop: c.prop_id, area: c.part, detail: (c.checked ? "Checked cleared" : "Unchecked") + (c.storm_name ? " · " + c.storm_name : "") }));
+  const clr = od.clear_log.map(c => ({ ts: c.ts, crew: c.crew, type: "Clearing", prop: c.prop_id, area: c.part, detail: (c.checked ? (c.note ? "Checked, not fully cleared: " + c.note : "Checked cleared") : "Unchecked") + (c.storm_name ? " · " + c.storm_name : "") }));
   return [...salt, ...clr].sort((a, b) => a.ts.localeCompare(b.ts));
 }
 const fillWord = x => x.kind === "bulk" ? `Bulk${x.yard ? " · " + x.yard : ""}` : `Bags · ${x.bags || "?"}${x.yard ? " · " + x.yard : ""}`;
+const areaWord = r => r.area === "walks" ? "Walkways" : r.type === "Clearing" ? "Parking lots" : "Drive lanes";
+const clearWord = a => a === "drives" ? "Parking lots" : "Walkways";
 const propName = id => (PROPS[id] ? PROPS[id].addr : id);
 function rangeName(od) {
   const ts = [...od.entries, ...od.fills, ...od.clear_log].map(a => a.ts).sort();
@@ -186,7 +188,7 @@ function exportXlsx(od) {
   const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Main log");
   const fl = [["Date", "Time", "Driver", "Filled with", "Bags", "Yard"], ...od.fills.map(x => [md(x.ts), hm(x.ts), x.crew, x.kind === "bulk" ? "Bulk" : "Bags", x.bags || "", x.yard || ""])];
   const ws3 = XLSX.utils.aoa_to_sheet(fl); ws3["!cols"] = [{ wch: 7 }, { wch: 6 }, { wch: 14 }, { wch: 11 }, { wch: 6 }, { wch: 12 }]; XLSX.utils.book_append_sheet(wb, ws3, "Salt fill-ups");
-  const det = [["Date", "Time", "Driver", "Type", "Property", "Area", "Detail"], ...dataRows(od).map(r => [md(r.ts), hm(r.ts), r.crew, r.type, PROPS[r.prop] ? PROPS[r.prop].label : r.prop, r.area === "drives" ? "Drive lanes" : "Walkways", r.detail])];
+  const det = [["Date", "Time", "Driver", "Type", "Property", "Area", "Detail"], ...dataRows(od).map(r => [md(r.ts), hm(r.ts), r.crew, r.type, PROPS[r.prop] ? PROPS[r.prop].label : r.prop, areaWord(r), r.detail])];
   const ws2 = XLSX.utils.aoa_to_sheet(det); ws2["!cols"] = [{ wch: 7 }, { wch: 6 }, { wch: 14 }, { wch: 10 }, { wch: 60 }, { wch: 12 }, { wch: 30 }]; XLSX.utils.book_append_sheet(wb, ws2, "Log data");
   XLSX.writeFile(wb, rangeName(od) + ".xlsx");
 }
@@ -273,22 +275,22 @@ function pastStorms() {
   return `<section class="panel"><h2>Past storms</h2>${list.length ? list.map(st => {
     const cm = {}; (st.clears || []).forEach(c => { (cm[c.prop_id] = cm[c.prop_id] || {})[c.part] = c; });
     const ok = p => parts(p).every(a => (cm[p.id] || {})[a]); const n = all.filter(ok).length;
-    const cell = (p, a) => { if (a === "walks" && !p.walks) return `<td class="nowalk"></td>`; const c = (cm[p.id] || {})[a]; return c ? `<td class="t">✓ ${md(c.ts)} ${hm(c.ts)} · ${esc(c.crew)}</td>` : `<td class="t muted" style="font-weight:600">Not checked</td>`; };
+    const cell = (p, a) => { if (a === "walks" && !p.walks) return `<td class="nowalk"></td>`; const c = (cm[p.id] || {})[a]; return c ? `<td class="t">✓ ${md(c.ts)} ${hm(c.ts)} · ${esc(c.crew)}${c.note ? `<div class="cnote">⚠ ${esc(c.note)}</div>` : ""}</td>` : `<td class="t muted" style="font-weight:600">Not checked</td>`; };
     return `<details class="storm"><summary><b>${esc(st.name)}</b><span class="muted small">${fmtWhen(st.started)} to ${fmtWhen(st.ended)} · ${n}/${all.length} fully cleared</span></summary>
-      <div class="tbl-wrap"><table class="log"><thead><tr><th>Property</th><th>Drive lanes</th><th>Walkways</th></tr></thead><tbody>${ROUTES.map(r => `<tr class="rh"><td colspan="3">${esc(r.name)}</td></tr>` + r.props.map(p => `<tr><td>${esc(p.addr)}</td>${cell(p, "drives")}${cell(p, "walks")}</tr>`).join("")).join("")}</tbody></table></div></details>`;
+      <div class="tbl-wrap"><table class="log"><thead><tr><th>Property</th><th>Parking lots</th><th>Walkways</th></tr></thead><tbody>${ROUTES.map(r => `<tr class="rh"><td colspan="3">${esc(r.name)}</td></tr>` + r.props.map(p => `<tr><td>${esc(p.addr)}</td>${cell(p, "drives")}${cell(p, "walks")}</tr>`).join("")).join("")}</tbody></table></div></details>`;
   }).join("") : `<p class="muted" style="margin:0">When you end a storm, its checklist is saved here.</p>`}</section>`;
 }
 function viewClear() {
   const owner = AUTH.role === "owner";
   if (!DATA.storm) return owner ? `<section class="panel"><h2>Storm clearing checklist</h2>
-    <p class="muted" style="margin:0">Start a storm and every crew's phone gets the checklist. Crews check off drive lanes and walkways at each property as they're cleared.</p>
+    <p class="muted" style="margin:0">Start a storm and every crew's phone gets the checklist. Crews check off parking lots and walkways at each property as they're cleared.</p>
     <label class="f" for="storm-name">Storm name<input type="text" id="storm-name" placeholder="e.g. Dec 12 storm"></label>
     <button class="btn block" id="storm-start">Start storm</button></section>` + pastStorms()
     : `<section class="arrive waiting"><h2>No storm in progress</h2><div class="muted">The clearing checklist shows up here when a storm is started.</div></section>`;
   const cm = {}; (DATA.clears || []).forEach(c => { (cm[c.prop_id] = cm[c.prop_id] || {})[c.part] = c; });
   const all = allProps(); const parts = p => p.walks ? ["drives", "walks"] : ["drives"];
   const isDone = p => parts(p).every(a => (cm[p.id] || {})[a]); const done = all.filter(isDone).length;
-  const box = (p, a) => { const c = (cm[p.id] || {})[a]; return `<label class="ck${c ? " on" : ""}" for="clr-${p.id}-${a}"><input type="checkbox" id="clr-${p.id}-${a}" data-clear="${p.id}" data-part="${a}" ${c ? "checked" : ""}><span><b>${a === "drives" ? "Drive lanes" : "Walkways"}</b>${c ? `<small>${hm(c.ts)} · ${esc(c.crew)}</small>` : ""}</span></label>`; };
+  const box = (p, a) => { const c = (cm[p.id] || {})[a]; return `<label class="ck${c ? " on" : ""}" for="clr-${p.id}-${a}"><input type="checkbox" id="clr-${p.id}-${a}" data-clear="${p.id}" data-part="${a}" ${c ? "checked" : ""}><span><b>${clearWord(a)}</b>${c ? `<small>${hm(c.ts)} · ${esc(c.crew)}</small>${c.note ? `<small class="cnote">⚠ ${esc(c.note)}</small>` : ""}` : ""}</span></label>`; };
   return `<section class="panel"><div class="runbar"><div><h2>${esc(DATA.storm.name)}</h2><div class="muted small">${done} of ${all.length} properties fully cleared · updates live</div></div>${owner ? `<button class="btn ghost" id="storm-end">End storm</button>` : ""}</div>
     <div class="progress"><i style="width:${all.length ? Math.round(done / all.length * 100) : 0}%"></i></div></section>
     ${ROUTES.map(r => `<h3 class="route-h">${esc(r.name)} · ${r.props.filter(isDone).length}/${r.props.length}</h3>` + r.props.map(p =>
@@ -312,7 +314,7 @@ function viewLogs() {
     ${od.fills.length ? `<div class="tbl-wrap"><table class="log" style="min-width:360px"><thead><tr><th>When</th><th>Driver</th><th>Filled with</th></tr></thead><tbody>${[...od.fills].reverse().map(x => `<tr><td class="t">${md(x.ts)} ${hm(x.ts)}</td><td><b>${esc(x.crew)}</b></td><td>${esc(fillWord(x))}</td></tr>`).join("")}</tbody></table></div>` : `<p class="muted" style="margin:0">No fill-ups logged yet.</p>`}</section>
     <section class="panel"><h2>Log data</h2><div class="muted small">Every salt entry and clearing check-off with who did it, newest first.</div>
     ${rows.length ? `<div class="tbl-wrap"><table class="log" style="min-width:600px"><thead><tr><th>When</th><th>Driver</th><th>Type</th><th>Property</th><th>Area</th><th>Detail</th></tr></thead><tbody>${
-      rows.slice(0, UI.allFeed ? 99999 : 15).map(r => `<tr><td class="t">${md(r.ts)} ${hm(r.ts)}</td><td><b>${esc(r.crew)}</b></td><td>${r.type}</td><td>${esc(propName(r.prop))}</td><td>${r.area === "drives" ? "Drive lanes" : "Walkways"}</td><td class="t">${esc(r.detail)}</td></tr>`).join("")}</tbody></table></div>
+      rows.slice(0, UI.allFeed ? 99999 : 15).map(r => `<tr><td class="t">${md(r.ts)} ${hm(r.ts)}</td><td><b>${esc(r.crew)}</b></td><td>${r.type}</td><td>${esc(propName(r.prop))}</td><td>${areaWord(r)}</td><td class="t">${esc(r.detail)}</td></tr>`).join("")}</tbody></table></div>
       ${rows.length > 15 && !UI.allFeed ? `<button class="btn ghost" id="all-feed">Show all ${rows.length} entries</button>` : ""}` : `<p class="muted" style="margin:0">Nothing logged yet.</p>`}</section>`;
 }
 function viewCrew() {
@@ -374,6 +376,23 @@ function modal(html, onClick) { const m = document.getElementById("modal"); m.in
 function confirmBox(title, body, okLabel, onOk) {
   modal(`<h2>${esc(title)}</h2><p class="muted" style="margin:0">${esc(body)}</p><button class="btn salt block" id="ok">${esc(okLabel)}</button><button class="btn ghost block" id="cancel">Cancel</button>`,
     (t, close) => { if (t.id === "ok") { close(); onOk(); } });
+}
+function openClearCheck(pid, part) {
+  const p = PROPS[pid], storm = DATA.storm; if (!p || !storm) return;
+  const ask = part === "drives" ? "Make sure the whole parking lot is clear." : "Make sure all doors, walks, and the dumpster area are fully cleared.";
+  modal(`<div class="muted small" style="text-transform:uppercase;letter-spacing:.08em;font-weight:700">${clearWord(part)}</div><h2 style="margin-top:-8px">Fully cleared?</h2><div class="muted small" style="margin-top:-8px">${esc(p.addr)}</div>
+    <p style="margin:0;font-weight:600">${ask}</p>
+    <button class="btn salt block huge" id="cl-yes">Yes, fully cleared</button>
+    <button class="btn walk block" id="cl-no">Couldn't fully clear</button>
+    <div id="cl-note-wrap" hidden><label class="f" for="cl-note">What couldn't be cleared?<textarea id="cl-note" rows="3" placeholder="e.g. cars parked in back row, dumpster blocked"></textarea></label>
+      <button class="btn salt block" id="cl-save">Check off with note</button></div>
+    <button class="btn ghost block" id="cancel">Cancel</button>`, (x, close) => {
+    const go = note => { close(); if (!DATA.storm || DATA.storm.id !== storm.id) return;
+      send("clear", { storm_id: storm.id, prop_id: pid, part, checked: true, note, ts: nowIso() }); toast(note ? "Checked off with note" : "Checked off"); };
+    if (x.id === "cl-yes") go("");
+    else if (x.id === "cl-no") { document.getElementById("cl-note-wrap").hidden = false; document.getElementById("cl-note").focus(); }
+    else if (x.id === "cl-save") { const n = document.getElementById("cl-note").value.trim(); if (!n) { toast("Add a note about what couldn't be cleared"); return; } go(n); }
+  });
 }
 function openQuick(pid, area) {
   const p = PROPS[pid];
@@ -463,7 +482,8 @@ app.addEventListener("change", ev => {
   if (t.id === "from" || t.id === "to") { UI[t.id] = t.value; UI.ownerData = null; render(); return; }
   if (t.dataset.clear) {
     if (!DATA.storm) return;
-    send("clear", { storm_id: DATA.storm.id, prop_id: t.dataset.clear, part: t.dataset.part, checked: t.checked, ts: nowIso() });
+    if (!t.checked) { send("clear", { storm_id: DATA.storm.id, prop_id: t.dataset.clear, part: t.dataset.part, checked: false, ts: nowIso() }); return; }
+    t.checked = false; openClearCheck(t.dataset.clear, t.dataset.part);
   }
 });
 app.addEventListener("click", ev => {

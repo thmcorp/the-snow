@@ -39,7 +39,7 @@ main{display:flex;flex-direction:column;gap:16px;padding-block:16px}
 .muted{color:var(--muted)}
 .small{font-size:14px}
 label.f{display:flex;flex-direction:column;gap:6px;font-weight:600;font-size:14px}
-select,input[type=text],input[type=time],input[type=date],input[type=number],input[type=password]{font:inherit;font-size:17px;padding:12px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);width:100%}
+select,input[type=text],input[type=time],input[type=date],input[type=number],input[type=password],textarea{font:inherit;font-size:17px;padding:12px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);width:100%}
 button{font:inherit;cursor:pointer}
 button:focus-visible,input:focus-visible,.chip:focus-within{outline:3px solid var(--accent);outline-offset:2px}
 .btn{border:0;border-radius:10px;padding:14px 18px;font-weight:700;font-size:17px;background:var(--accent);color:var(--accent-ink)}
@@ -132,3 +132,5 @@ details.manual summary,details summary{cursor:pointer;font-weight:600;padding:6p
 .banner{position:sticky;top:calc(env(safe-area-inset-top,0px) + 52px);z-index:4;background:var(--warn-bg);color:var(--ink);font-weight:600;font-size:14px;text-align:center;padding:8px 16px;border-bottom:1px solid var(--line)}
 .err{color:#b3261e;font-weight:600}
 .gps-off{color:var(--muted)}
+.cnote,.ck small.cnote{display:block;color:#b4540a;font-weight:600;white-space:normal}
+textarea{resize:vertical}

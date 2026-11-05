@@ -60,6 +60,7 @@ create table if not exists clears(
   ts timestamptz not null default now(),
   primary key (storm_id, prop_id, part)
 );
+alter table clears add column if not exists note text not null default '';
 create table if not exists clear_log(
   id uuid primary key default gen_random_uuid(),
   storm_id uuid,
@@ -70,6 +71,7 @@ create table if not exists clear_log(
   crew text,
   ts timestamptz not null default now()
 );
+alter table clear_log add column if not exists note text not null default '';
 create table if not exists sessions(
   id uuid primary key,
   name text not null,
@@ -214,14 +216,14 @@ begin
   when 'clear' then
     if v_storm.id is null or v_storm.id <> (d->>'storm_id')::uuid then raise exception 'no_storm'; end if;
     if (d->>'checked')::boolean then
-      insert into clears(storm_id, prop_id, part, crew, ts)
-        values (v_storm.id, d->>'prop_id', d->>'part', v_name, coalesce((d->>'ts')::timestamptz, now()))
-        on conflict (storm_id, prop_id, part) do nothing;
+      insert into clears(storm_id, prop_id, part, crew, ts, note)
+        values (v_storm.id, d->>'prop_id', d->>'part', v_name, coalesce((d->>'ts')::timestamptz, now()), coalesce(d->>'note',''))
+        on conflict (storm_id, prop_id, part) do update set note = excluded.note, crew = excluded.crew, ts = excluded.ts;
     else
       delete from clears where storm_id = v_storm.id and prop_id = d->>'prop_id' and part = d->>'part';
     end if;
-    insert into clear_log(storm_id, storm_name, prop_id, part, checked, crew, ts)
-      values (v_storm.id, v_storm.name, d->>'prop_id', d->>'part', (d->>'checked')::boolean, v_name, coalesce((d->>'ts')::timestamptz, now()));
+    insert into clear_log(storm_id, storm_name, prop_id, part, checked, crew, ts, note)
+      values (v_storm.id, v_storm.name, d->>'prop_id', d->>'part', (d->>'checked')::boolean, v_name, coalesce((d->>'ts')::timestamptz, now()), coalesce(d->>'note',''));
     return '{}'::jsonb;
 
   when 'storm_start' then
