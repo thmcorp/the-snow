@@ -233,3 +233,4 @@ body{padding-bottom:calc(110px + env(safe-area-inset-bottom,0px))}
 .arrive.fillcard .gps.fillhead .dot{display:none}
 .apphead{font-family:var(--display);font-size:28px;font-weight:800;color:var(--salt);text-transform:uppercase;letter-spacing:.03em;line-height:1.1}
 .saltcard .gps{font-size:13px;margin-top:-6px}
+.pickdiv{border-top:1px solid var(--line);padding-top:14px}

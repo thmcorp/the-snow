@@ -309,11 +309,11 @@ function viewRun() {
         <button class="btn salt huge" data-salted="drives">Salted Parking Lot(s)</button>
         ${here.walks ? `<button class="btn walk huge" data-salted="walks">Salted Walkways</button>` : ""}
       </div>
+      <div class="pickdiv">${propSelect()}</div>
       ${owner ? `<button class="linkbtn" id="save-spot" style="align-self:flex-start">${here.lat != null ? "Update" : "Save"} GPS location for this property (stand on the lot)</button>` : ""}
-    </section>` : `<section class="arrive waiting saltcard"><div class="apphead">Salt Applications</div>${gpsLine(false)}</section>`;
+    </section>` : `<section class="arrive waiting saltcard"><div class="apphead">Salt Applications</div>${gpsLine(false)}<div class="pickdiv">${propSelect()}</div></section>`;
   return `${clockBar()}
     ${arrival}
-    <section class="panel">${propSelect()}</section>
     ${fillCard()}${myLogCard()}`;
 }
 const dur = ms => { const m = Math.max(0, Math.floor(ms / 60000)), h = Math.floor(m / 60); return h ? `${h}h ${m % 60}m` : `${m}m`; };
