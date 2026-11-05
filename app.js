@@ -51,6 +51,8 @@ function buildRoutes() {
   });
 }
 const allProps = () => ROUTES.flatMap(r => r.props);
+const saltOnly = p => /salt only/i.test(p.label || "");
+const clearable = () => allProps().filter(p => !saltOnly(p));
 
 // ---------- server ----------
 async function rpc(action, data, fn) {
@@ -233,6 +235,12 @@ function fillCard() {
     ${mine.length ? `<div class="done-line">✓ Logged</div><div class="logged">${mine.map(x => `<button class="entry" data-fillfix="${x.id}">${esc(fillWord(x))}</button>`).join("")}</div>` : ""}
   </section>`;
 }
+function myLogCard() {
+  const mine = (DATA.run && DATA.entries) || []; if (!mine.length) return "";
+  const g = []; mine.slice().sort((a, b) => a.ts.localeCompare(b.ts)).forEach(e => { let x = g.find(y => y.id === e.prop_id); if (!x) g.push(x = { id: e.prop_id, items: [] }); x.items.push(e); });
+  return `<section class="panel"><h2>Your log this shift</h2><div class="muted small">${g.length} propert${g.length === 1 ? "y" : "ies"} salted · tap an entry to fix it</div>
+    <div class="sumlist">${g.map(x => `<div class="sumrow"><div style="font-weight:700">${esc(propName(x.id))}</div><div class="logged">${x.items.map(e => `<button class="entry" data-entry="${e.id}">${e.area === "drives" ? "Parking lots" : "Walks"} · ${amtWord(e.amt)}</button>`).join("")}</div></div>`).join("")}</div></section>`;
+}
 function viewRun() {
   const run = DATA.run;
   const here = UI.here ? PROPS[UI.here] : null;
@@ -257,7 +265,7 @@ function viewRun() {
   return `${run ? `<section class="panel"><div class="runbar"><div><h2>${esc(run.crew)}</h2><div class="muted small">Clocked in ${fmtWhen(run.started)} · ${stops} of ${total} stop${total === 1 ? "" : "s"} salted</div></div></div></section>` : ""}
     ${arrival}
     <section class="panel">${propSelect()}</section>
-    ${fillCard()}`;
+    ${fillCard()}${myLogCard()}`;
 }
 const dur = ms => { const m = Math.max(0, Math.floor(ms / 60000)), h = Math.floor(m / 60); return h ? `${h}h ${m % 60}m` : `${m}m`; };
 function viewStart() {
@@ -275,7 +283,7 @@ function viewStart() {
   let storm = `<div class="muted small">No storm right now</div>`;
   if (DATA.storm) {
     const cm = {}; (DATA.clears || []).forEach(c => { (cm[c.prop_id] = cm[c.prop_id] || {})[c.part] = c; });
-    const all = allProps(); const done = all.filter(p => (p.walks ? ["drives", "walks"] : ["drives"]).every(a => (cm[p.id] || {})[a])).length;
+    const all = clearable(); const done = all.filter(p => (p.walks ? ["drives", "walks"] : ["drives"]).every(a => (cm[p.id] || {})[a])).length;
     storm = `<div class="small" style="font-weight:600">${esc(DATA.storm.name)}</div><div class="muted small">${done} of ${all.length} cleared</div>`;
   }
   const tiles = `<div class="tiles">
@@ -303,13 +311,13 @@ function viewReport(r) {
 function pastStorms() {
   if (AUTH.role !== "owner") return "";
   const list = DATA.past_storms || [];
-  const all = allProps(); const parts = p => p.walks ? ["drives", "walks"] : ["drives"];
+  const all = clearable(); const parts = p => p.walks ? ["drives", "walks"] : ["drives"];
   return `<section class="panel"><h2>Past storms</h2>${list.length ? list.map(st => {
     const cm = {}; (st.clears || []).forEach(c => { (cm[c.prop_id] = cm[c.prop_id] || {})[c.part] = c; });
     const ok = p => parts(p).every(a => (cm[p.id] || {})[a]); const n = all.filter(ok).length;
     const cell = (p, a) => { if (a === "walks" && !p.walks) return `<td class="nowalk"></td>`; const c = (cm[p.id] || {})[a]; return c ? `<td class="t${c.note ? " badcell" : ""}">${c.note ? "✗" : "✓"} ${md(c.ts)} ${hm(c.ts)} · ${esc(c.crew)}${c.note ? ` · ${esc(c.note)}` : ""}</td>` : `<td class="t muted" style="font-weight:600">Not checked</td>`; };
     return `<details class="storm"><summary><b>${esc(st.name)}</b><span class="muted small">${fmtWhen(st.started)} to ${fmtWhen(st.ended)} · ${n}/${all.length} fully cleared</span></summary>
-      <div class="tbl-wrap"><table class="log"><thead><tr><th>Property</th><th>Parking lots</th><th>Walkways</th></tr></thead><tbody>${ROUTES.map(r => `<tr class="rh"><td colspan="3">${esc(r.name)}</td></tr>` + r.props.map(p => `<tr><td>${esc(p.addr)}</td>${cell(p, "drives")}${cell(p, "walks")}</tr>`).join("")).join("")}</tbody></table></div></details>`;
+      <div class="tbl-wrap"><table class="log"><thead><tr><th>Property</th><th>Parking lots</th><th>Walkways</th></tr></thead><tbody>${ROUTES.map(r => `<tr class="rh"><td colspan="3">${esc(r.name)}</td></tr>` + r.props.map(p => `<tr><td>${esc(p.addr)}</td>${saltOnly(p) ? `<td colspan="2" class="muted small">Salt only, no clearing</td>` : cell(p, "drives") + cell(p, "walks")}</tr>`).join("")).join("")}</tbody></table></div></details>`;
   }).join("") : `<p class="muted" style="margin:0">When you end a storm, its checklist is saved here.</p>`}</section>`;
 }
 function viewClear() {
@@ -320,13 +328,14 @@ function viewClear() {
     <button class="btn block" id="storm-start">Start storm</button></section>` + pastStorms()
     : `<section class="arrive waiting"><h2>No storm in progress</h2><div class="muted">The clearing checklist shows up here when a storm is started.</div></section>`;
   const cm = {}; (DATA.clears || []).forEach(c => { (cm[c.prop_id] = cm[c.prop_id] || {})[c.part] = c; });
-  const all = allProps(); const parts = p => p.walks ? ["drives", "walks"] : ["drives"];
+  const all = clearable(); const parts = p => p.walks ? ["drives", "walks"] : ["drives"];
   const isDone = p => parts(p).every(a => (cm[p.id] || {})[a]); const done = all.filter(isDone).length;
   const box = (p, a) => { const c = (cm[p.id] || {})[a]; return `<label class="ck${c ? " on" : ""}${c && c.note ? " bad" : ""}" for="clr-${p.id}-${a}"><input type="checkbox" id="clr-${p.id}-${a}" data-clear="${p.id}" data-part="${a}" ${c ? "checked" : ""}><span><b>${clearWord(a)}</b>${c ? `<small>${hm(c.ts)} · ${esc(c.crew)}${c.note ? ` · ${esc(c.note)}` : ""}</small>` : ""}</span></label>`; };
   return `<section class="panel"><div class="runbar"><div><h2>${esc(DATA.storm.name)}</h2><div class="muted small">${done} of ${all.length} properties fully cleared · updates live</div></div>${owner ? `<button class="btn ghost" id="storm-end">End storm</button>` : ""}</div>
     <div class="progress"><i style="width:${all.length ? Math.round(done / all.length * 100) : 0}%"></i></div></section>
-    ${ROUTES.map(r => `<h3 class="route-h">${esc(r.name)} · ${r.props.filter(isDone).length}/${r.props.length}</h3>` + r.props.map(p =>
-      `<div class="clear${isDone(p) ? " done" : ""}${parts(p).some(a => ((cm[p.id] || {})[a] || {}).note) ? " bad" : ""}"><div style="flex:1;min-width:0"><div style="font-weight:700">${esc(p.addr)}</div>${p.client ? `<div class="muted small">${esc(p.client)}</div>` : ""}
+    ${ROUTES.map(r => `<h3 class="route-h">${esc(r.name)} · ${r.props.filter(p => !saltOnly(p) && isDone(p)).length}/${r.props.filter(p => !saltOnly(p)).length}</h3>` + r.props.map(p => saltOnly(p)
+      ? `<div class="clear saltonly"><div style="flex:1;min-width:0"><div style="font-weight:700">${esc(p.addr)}</div>${p.client ? `<div class="muted small">${esc(p.client)}</div>` : ""}<div class="small" style="font-weight:600;margin-top:6px">Salt only · no clearing</div></div></div>`
+      : `<div class="clear${isDone(p) ? " done" : ""}${parts(p).some(a => ((cm[p.id] || {})[a] || {}).note) ? " bad" : ""}"><div style="flex:1;min-width:0"><div style="font-weight:700">${esc(p.addr)}</div>${p.client ? `<div class="muted small">${esc(p.client)}</div>` : ""}
         <div class="cks">${parts(p).map(a => box(p, a)).join("")}</div></div></div>`).join("")).join("")}${pastStorms()}`;
 }
 function viewLogs() {
