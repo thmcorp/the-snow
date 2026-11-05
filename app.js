@@ -495,7 +495,7 @@ function openEndShift() {
       const n = document.getElementById("em-note").value.trim(); if (!n) { toast("Write about how much was emptied"); return; }
       const k = E.kind, y = E.yard; stepNotes(() => send("empty", { id: uuid(), kind: k, yard: y, note: n, run_id: DATA.run.id, ts: nowIso() })); });
     document.getElementById("em-note").focus(); };
-  const stepNotes = pre => { modal(`<h2>Any notes before you clock out?</h2><div class="muted small" style="margin-top:-8px">Broken shovels, broken snowblower, damage, anything Tyler should know. Leave blank if nothing.</div>
+  const stepNotes = pre => { modal(`<h2>Shift Notes</h2><p style="margin:-6px 0 0;font-size:18px;font-weight:600;line-height:1.35">Anything broken or damaged Tyler should know about. If nothing, leave blank</p>
     <div class="notewrap"><label class="f" for="shift-note">Notes<textarea id="shift-note" rows="4" placeholder="e.g. shovel handle broke, snowblower won't start"></textarea></label>
     <button class="btn bad block huge" id="shift-done">Clock out</button></div>
     <button class="btn ghost block" id="cancel">Cancel</button>`, x => {
