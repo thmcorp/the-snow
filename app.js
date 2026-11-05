@@ -510,6 +510,7 @@ app.addEventListener("change", ev => {
     t.checked = false; openClearCheck(t.dataset.clear, t.dataset.part);
   }
 });
+app.addEventListener("pointerdown", ev => { const b = ev.target.closest(".btn,.tile"); if (!b) return; b.classList.add("pressed"); if (navigator.vibrate && b.closest(".shift,.tiles")) navigator.vibrate(15); setTimeout(() => b.classList.remove("pressed"), 160); });
 app.addEventListener("click", ev => {
   const t = ev.target.closest("button"); if (!t) return;
   if (t.id === "login") { signIn(); return; }
@@ -521,7 +522,7 @@ app.addEventListener("click", ev => {
       send("finish_run", { id: DATA.run.id, ts: nowIso() }); UI.here = null; LS.del("here"); render(); window.scrollTo(0, 0); }); return; }
   if (t.id === "new-run") { UI.report = null; render(); return; }
   if (t.id === "start-run") { if (!DATA.run) send("start_run", { id: uuid(), ts: nowIso() }); startGps(); render(); toast("You're on the clock"); return; }
-  if (t.dataset.go) { UI.tab = t.dataset.go; LS.set("tab", UI.tab); render(); window.scrollTo(0, 0); return; }
+  if (t.dataset.go) { setTimeout(() => { UI.tab = t.dataset.go; LS.set("tab", UI.tab); render(); window.scrollTo(0, 0); }, 140); return; }
   if (t.id === "save-spot") {
     const pos = UI.gps.pos; if (!pos) { toast("Waiting for GPS. Make sure location is allowed."); startGps(); return; }
     rpc("set_coords", { prop_id: UI.here, lat: pos.lat, lng: pos.lng }).then(() => { toast("Location saved for this property"); refresh(); }).catch(() => toast("Couldn't save the location. Try again with signal."));

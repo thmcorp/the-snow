@@ -152,3 +152,6 @@ label.f.bigpick{font-size:18px;font-weight:700}
 .salt-tile{border-color:var(--salt)}
 .clear-tile{border-color:var(--accent)}
 .btn.yes{background:var(--ok);color:#fff;border-color:var(--ok)}
+.arrive.shift:not(.waiting){border-color:#fff}
+.btn,.tile{transition:transform .08s ease,filter .08s ease,box-shadow .08s ease;-webkit-tap-highlight-color:transparent}
+.btn:active,.tile:active,.tile.pressed,.btn.pressed{transform:scale(.95);filter:brightness(.85);box-shadow:0 0 0 4px rgba(255,255,255,.35) inset}
