@@ -226,7 +226,7 @@ function propSelect() {
   return `<label class="f bigpick" for="pick-prop">Or choose a property<select id="pick-prop"><option value="">Select a property…</option>${ROUTES.map(r => `<optgroup label="${esc(r.name)}">${r.props.map(p => `<option value="${p.id}" ${p.id === UI.here ? "selected" : ""}>${done.has(p.id) ? "✓ " : ""}${esc(p.addr)}</option>`).join("")}</optgroup>`).join("")}</select></label>`;
 }
 function fillCard() {
-  const mine = (DATA.fills || []).filter(x => localDate(x.ts) === localDate(nowIso())).sort((a, b) => a.ts.localeCompare(b.ts));
+  const mine = DATA.run ? (DATA.fills || []).filter(x => new Date(x.ts) >= new Date(DATA.run.started) - 1000).sort((a, b) => a.ts.localeCompare(b.ts)) : [];
   return `<section class="arrive fillcard"><div class="gps">Salt fill-up</div>
     <div class="muted small">Tap when you load the truck.</div>
     <div class="acts"><button class="btn salt huge" data-fill="bulk">Filled bulk</button><button class="btn walk huge" data-fill="bags">Filled bags</button></div>
@@ -476,6 +476,7 @@ function openEdit(e) {
   });
 }
 function logFill(kind, bags, yard) {
+  if (!DATA.run) send("start_run", { id: uuid(), ts: nowIso() });
   send("fill", { id: uuid(), kind, bags: bags || null, yard, run_id: DATA.run ? DATA.run.id : null, ts: nowIso() });
   toast(kind === "bulk" ? `Logged bulk · ${yard}` : `Logged ${bags} bags · ${yard}`);
 }
@@ -545,7 +546,7 @@ app.addEventListener("click", ev => {
   if (t.id === "finish") { confirmBox("End your shift?", "", "End", () => {
       const mine = DATA.entries || [];
       UI.report = { time: dur(Date.now() - new Date(DATA.run.started)), started: DATA.run.started, ended: nowIso(), crew: DATA.run.crew, entries: mine.slice().sort((a, b) => a.ts.localeCompare(b.ts)),
-        fills: (DATA.fills || []).filter(f => f.ts >= DATA.run.started).sort((a, b) => a.ts.localeCompare(b.ts)),
+        fills: (DATA.fills || []).filter(f => new Date(f.ts) >= new Date(DATA.run.started) - 1000).sort((a, b) => a.ts.localeCompare(b.ts)),
         storm: DATA.storm ? DATA.storm.name : null,
         clears: DATA.storm ? (DATA.clears || []).filter(c => c.crew.trim().toLowerCase() === AUTH.name.trim().toLowerCase()).sort((a, b) => a.ts.localeCompare(b.ts)) : [] };
       send("finish_run", { id: DATA.run.id, ts: nowIso() }); UI.here = null; LS.del("here"); render(); window.scrollTo(0, 0); }); return; }
