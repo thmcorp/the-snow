@@ -237,3 +237,9 @@ body{padding-bottom:calc(110px + env(safe-area-inset-bottom,0px))}
 /* One border thickness for every colored rounded box */
 .arrive:not(.waiting),.arrive.saltcard,.tile.salt-tile,.tile.clear-tile,.clear.done,.clear.bad{border-width:4px;border-style:solid}
 .arrive.saltcard{border-color:var(--salt)}
+.gpsico{width:22px;height:22px;flex:none;overflow:visible}
+.gpsico.on{color:var(--ok)}
+.gpsico.wait{color:var(--salt);animation:gpspulse 1.2s ease-in-out infinite}
+.gpsico.off{color:var(--muted)}
+@keyframes gpspulse{50%{opacity:.35}}
+.saltcard .gps{gap:8px}
