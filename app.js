@@ -579,7 +579,7 @@ app.addEventListener("click", ev => {
   if (t.id === "storm-end") { confirmBox("End this storm?", "Its checklist is saved under Past storms, and a fresh one is ready for the next storm.", "End storm",
     () => rpc("storm_end", {}).then(() => { toast("Storm ended"); refresh(); }).catch(() => toast("Couldn't end the storm. Check your signal."))); return; }
   if (t.dataset.fill === "bulk") {
-    modal(`<h2>Filled bulk</h2><div class="muted small" style="margin-top:-8px">Which yard?</div>
+    modal(`<h2>Filled bulk</h2><div class="muted small" style="margin-top:-8px">From which Storage Facility?</div>
       <div class="locs">${YARDS_BULK.map(l => `<button class="btn salt huge" data-loc="${l}">${l}</button>`).join("")}</div>
       <button class="btn ghost block" id="cancel">Cancel</button>`, (x, close) => { const l = x.closest("[data-loc]"); if (l) { close(); logFill("bulk", null, l.dataset.loc); } });
     return;
@@ -587,7 +587,7 @@ app.addEventListener("click", ev => {
   if (t.dataset.fill === "bags") {
     modal(`<h2>Filled bags</h2>
       <label class="f" for="bag-count">1. How many bags?<select id="bag-count"><option value="">Select…</option>${Array.from({ length: 50 }, (_, i) => `<option value="${i + 1}">${i + 1}</option>`).join("")}</select></label>
-      <div class="muted small" style="font-weight:600" id="yard-h">2. Which yard? <span id="yard-hint">(pick the number of bags first)</span></div>
+      <div class="muted small" style="font-weight:600" id="yard-h">2. From which Storage Facility? <span id="yard-hint">(pick the number of bags first)</span></div>
       <div class="locs small-locs">${YARDS_BAGS.map(l => `<button class="btn walk" data-bagloc="${l}" disabled>${l}</button>`).join("")}</div>
       <button class="btn ghost block" id="cancel">Cancel</button>`, (x, close) => {
       const bl = x.closest("[data-bagloc]"); if (!bl) return;
