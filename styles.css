@@ -177,3 +177,6 @@ label.f.bigpick{font-size:18px;font-weight:700}
 .propitem[open] summary::after{transform:rotate(90deg)}
 .propitem summary span:first-child{flex:1;min-width:0}
 .propitem .logged{padding:0 14px 14px}
+.small-locs .btn{padding:12px 8px;font-size:16px}
+.small-locs .btn:disabled{opacity:.35;filter:grayscale(1);cursor:not-allowed;transform:none}
+#bag-count{font-size:20px;padding:14px;border:2px solid var(--salt)}

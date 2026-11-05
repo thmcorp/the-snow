@@ -586,14 +586,16 @@ app.addEventListener("click", ev => {
   }
   if (t.dataset.fill === "bags") {
     modal(`<h2>Filled bags</h2>
-      <label class="f" for="bag-count">How many bags?<select id="bag-count"><option value="">Select…</option>${Array.from({ length: 50 }, (_, i) => `<option value="${i + 1}">${i + 1}</option>`).join("")}</select></label>
-      <div class="muted small" style="font-weight:600">Which yard?</div>
-      <div class="locs">${YARDS_BAGS.map(l => `<button class="btn walk huge" data-bagloc="${l}">${l}</button>`).join("")}</div>
+      <label class="f" for="bag-count">1. How many bags?<select id="bag-count"><option value="">Select…</option>${Array.from({ length: 50 }, (_, i) => `<option value="${i + 1}">${i + 1}</option>`).join("")}</select></label>
+      <div class="muted small" style="font-weight:600" id="yard-h">2. Which yard? <span id="yard-hint">(pick the number of bags first)</span></div>
+      <div class="locs small-locs">${YARDS_BAGS.map(l => `<button class="btn walk" data-bagloc="${l}" disabled>${l}</button>`).join("")}</div>
       <button class="btn ghost block" id="cancel">Cancel</button>`, (x, close) => {
       const bl = x.closest("[data-bagloc]"); if (!bl) return;
       const n = +document.getElementById("bag-count").value; if (!n) { toast("Pick how many bags first"); return; }
       close(); logFill("bags", n, bl.dataset.bagloc);
     });
+    document.getElementById("bag-count").onchange = ev => { const on = !!ev.target.value;
+      document.querySelectorAll("[data-bagloc]").forEach(b => b.disabled = !on); document.getElementById("yard-hint").hidden = on; };
     return;
   }
   if (t.dataset.fillfix) { const x = DATA.fills.find(f => f.id === t.dataset.fillfix); if (!x) return;
