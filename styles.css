@@ -203,3 +203,6 @@ label[for=my-from],label[for=my-to]{text-align:center}
 .daterow label.f{min-width:0;text-align:center}
 .daterow input[type=date]{-webkit-appearance:none;appearance:none;display:block;box-sizing:border-box;width:100%;min-width:0;max-width:100%;min-height:50px;text-align:center;padding:12px 6px}
 .daterow input[type=date]::-webkit-date-and-time-value{text-align:center;margin:0 auto}
+body.locked{position:fixed;left:0;right:0;width:100%;overflow:hidden}
+.sheet{overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+.sheet-bg{overscroll-behavior:contain}

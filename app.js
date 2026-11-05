@@ -481,12 +481,18 @@ function render() {
 function toast(msg) { const t = document.getElementById("toast"); t.textContent = msg; t.hidden = false; clearTimeout(toast._t); toast._t = setTimeout(() => t.hidden = true, 2800); }
 function arriveAt(pid, auto) {
   UI.here = pid; LS.set("here", pid);
-  render(); window.scrollTo(0, 0);
+  render(); toTop();
   if (auto && navigator.vibrate) navigator.vibrate(200);
   refresh();
 }
 function modal(html, onClick) { const m = document.getElementById("modal"); m.innerHTML = `<div class="sheet-bg" id="sbg"><div class="sheet" role="dialog">${html}</div></div>`;
   m.onclick = ev => { const t = ev.target; if (t.id === "sbg" || t.id === "cancel") { m.innerHTML = ""; return; } onClick(t, () => { m.innerHTML = ""; }); }; }
+// Lock the page behind any open pop-up so only the pop-up scrolls (iPhone-safe).
+let modalY = 0; const toTop = () => { modalY = 0; window.scrollTo(0, 0); };
+(() => { const m = document.getElementById("modal"); if (!m) return; let locked = false;
+  new MutationObserver(() => { const open = !!m.querySelector(".sheet");
+    if (open && !locked) { modalY = window.scrollY; locked = true; document.body.style.top = -modalY + "px"; document.body.classList.add("locked"); }
+    else if (!open && locked) { locked = false; document.body.classList.remove("locked"); document.body.style.top = ""; window.scrollTo(0, modalY); } }).observe(m, { childList: true }); })();
 function confirmBox(title, body, okLabel, onOk) {
   modal(`<h2>${esc(title)}</h2>${body ? `<p class="muted" style="margin:0">${esc(body)}</p>` : ""}<button class="btn salt block" id="ok">${esc(okLabel)}</button><button class="btn ghost block" id="cancel">Cancel</button>`,
     (t, close) => { if (t.id === "ok") { close(); onOk(); } });
@@ -538,7 +544,7 @@ function endShift(note) {
     fills: (DATA.fills || []).filter(f => new Date(f.ts) >= new Date(DATA.run.started) - 1000).sort((a, b) => a.ts.localeCompare(b.ts)),
     storm: DATA.storm ? DATA.storm.name : null, note: note || "",
     clears: DATA.storm ? (DATA.clears || []).filter(c => c.crew.trim().toLowerCase() === AUTH.name.trim().toLowerCase()).sort((a, b) => a.ts.localeCompare(b.ts)) : [] };
-  send("finish_run", { id: DATA.run.id, ts: nowIso() }); UI.here = null; LS.del("here"); UI.tab = "home"; LS.set("tab", "home"); render(); window.scrollTo(0, 0);
+  send("finish_run", { id: DATA.run.id, ts: nowIso() }); UI.here = null; LS.del("here"); UI.tab = "home"; LS.set("tab", "home"); render(); toTop();
 }
 function openEndShift() {
   if (!DATA.run) return;
@@ -718,7 +724,7 @@ async function geocodeMissing(btn) {
 // ---------- events ----------
 document.getElementById("who-bar").addEventListener("click", ev => {
   if (ev.target.id !== "logout") return;
-  if (DATA && DATA.run) { UI.tab = "home"; LS.set("tab", "home"); UI.report = null; render(); window.scrollTo(0, 0);
+  if (DATA && DATA.run) { UI.tab = "home"; LS.set("tab", "home"); UI.report = null; render(); toTop();
     modal(`<h2>Clock out first</h2><p class="muted" style="margin:0">You're still on the clock. Tap End before signing out.</p><button class="btn salt block" id="cancel">OK</button>`, () => {});
     const e = document.getElementById("finish"); if (e) { e.classList.add("pulse"); setTimeout(() => e.classList.remove("pulse"), 3200); } return; }
   confirmBox("Sign out?", "You'll need your name and PIN to sign back in.", "Sign out", async () => {
@@ -726,7 +732,7 @@ document.getElementById("who-bar").addEventListener("click", ev => {
     signOutLocal();
   });
 });
-document.querySelector(".tabs").addEventListener("click", ev => { const b = ev.target.closest("[data-tab]"); if (!b) return; UI.tab = b.dataset.tab; LS.set("tab", UI.tab); if (UI.tab === "logs") UI.ownerData = UI.ownerData; render(); window.scrollTo(0, 0); if (UI.tab === "logs") loadOwnerData().then(render); if (UI.tab === "mine") { UI.mineErr = false; loadMine().then(render); } });
+document.querySelector(".tabs").addEventListener("click", ev => { const b = ev.target.closest("[data-tab]"); if (!b) return; UI.tab = b.dataset.tab; LS.set("tab", UI.tab); if (UI.tab === "logs") UI.ownerData = UI.ownerData; render(); toTop(); if (UI.tab === "logs") loadOwnerData().then(render); if (UI.tab === "mine") { UI.mineErr = false; loadMine().then(render); } });
 const app = document.getElementById("app");
 app.addEventListener("keydown", ev => { if (ev.key === "Enter" && (ev.target.id === "login-name" || ev.target.id === "login-pin")) signIn(); });
 app.addEventListener("change", ev => {
@@ -759,7 +765,7 @@ app.addEventListener("click", ev => {
   if (t.id === "finish") { openEndShift(); return; }
   if (t.id === "new-run") { UI.report = null; render(); return; }
   if (t.id === "start-run") { if (!DATA.run) send("start_run", { id: uuid(), ts: nowIso() }); startGps(); render(); toast("You're on the clock"); return; }
-  if (t.dataset.go) { setTimeout(() => { UI.tab = t.dataset.go; LS.set("tab", UI.tab); render(); window.scrollTo(0, 0); }, 140); return; }
+  if (t.dataset.go) { setTimeout(() => { UI.tab = t.dataset.go; LS.set("tab", UI.tab); render(); toTop(); }, 140); return; }
   if (t.id === "save-spot") {
     const pos = UI.gps.pos; if (!pos) { toast("Waiting for GPS. Make sure location is allowed."); startGps(); return; }
     rpc("set_coords", { prop_id: UI.here, lat: pos.lat, lng: pos.lng }).then(() => { toast("Location saved for this property"); refresh(); }).catch(() => toast("Couldn't save the location. Try again with signal."));
