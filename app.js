@@ -262,8 +262,7 @@ function viewRun() {
   const arrival = here ? `<section class="arrive">
       ${gpsLine(true)}
       <div><div class="addr-big">${esc(here.addr)}</div>${here.client ? `<div class="client">${esc(here.client)}</div>` : ""}</div>
-      ${hereLogged.length ? `<div class="done-line">✓ Logged</div>
-        <div class="logged">${hereLogged.map(e => `<button class="entry" data-entry="${e.id}">${e.area === "drives" ? "Parking lots" : "Walks"} · ${amtWord(e.amt)}</button>`).join("")}</div>` : ""}
+      ${hereLogged.length ? `<div class="logged">${hereLogged.map(e => `<button class="entry" data-entry="${e.id}">${e.area === "drives" ? "Parking lots" : "Walks"} · ${amtWord(e.amt)}</button>`).join("")}</div>` : ""}
       <div class="acts" style="${here.walks ? "" : "grid-template-columns:1fr"}">
         <button class="btn salt huge" data-salted="drives">Salted Parking Lots</button>
         ${here.walks ? `<button class="btn walk huge" data-salted="walks">Salted Walkways</button>` : ""}
@@ -515,13 +514,14 @@ function openClearCheck(pid, part) {
     <p style="margin:0;font-weight:600">${ask}</p>
     <div class="clgrid"><button class="btn yes huge" id="cl-yes">Yes, fully cleared</button><button class="btn bad huge" id="cl-no">Couldn't fully clear</button></div>
     <div id="cl-note-wrap" class="notewrap" hidden><label class="f" for="cl-note">What couldn't be cleared?<textarea id="cl-note" rows="3" placeholder="e.g. cars parked in back row, dumpster blocked"></textarea></label>
-      <button class="btn salt block" id="cl-save">Check off with note</button></div>
+      <button class="btn bad block" id="cl-save">Check Off with Note</button></div>
     <button class="btn ghost block" id="cancel">Cancel</button>`, (x, close) => {
     const go = note => { close(); if (!DATA.storm || DATA.storm.id !== storm.id) return;
       if (!DATA.run) send("start_run", { id: uuid(), ts: nowIso() });
       send("clear", { storm_id: storm.id, prop_id: pid, part, checked: true, note, ts: nowIso() }); toast(note ? "Checked off with note" : "Checked off"); };
     if (x.id === "cl-yes") go("");
-    else if (x.id === "cl-no") { document.getElementById("cl-note-wrap").hidden = false; document.getElementById("cl-note").focus(); }
+    else if (x.id === "cl-no") { const y = document.getElementById("cl-yes"); y.disabled = true; y.classList.add("dimmed"); x.classList.add("picked"); x.textContent = "✗ Couldn't fully clear";
+      document.getElementById("cl-note-wrap").hidden = false; document.getElementById("cl-note").focus(); }
     else if (x.id === "cl-save") { const n = document.getElementById("cl-note").value.trim(); if (!n) { toast("Add a note about what couldn't be cleared"); return; } go(n); }
   });
 }

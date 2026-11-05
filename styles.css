@@ -185,3 +185,4 @@ label.f.bigpick{font-size:18px;font-weight:700}
 .clock-sm{font-family:var(--display);font-size:30px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
 .btn.picked{outline:4px solid var(--ink);outline-offset:2px}
 .redbox{background:#c62828;color:#fff;font-family:var(--display);font-weight:800;font-size:28px;line-height:1.15;text-align:center;padding:28px 18px;border-radius:14px;letter-spacing:.02em}
+.btn.dimmed,.btn.dimmed:disabled{background:#9aa3ad !important;color:#e8ecef !important;opacity:.45;filter:grayscale(1)}
