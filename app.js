@@ -238,6 +238,13 @@ function fillCard() {
     ${mine.length ? `<div class="muted small" style="font-weight:600">Fill-ups this shift (tap to fix)</div><div class="logged">${mine.map(x => `<button class="entry" data-fillfix="${x.id}">${esc(fillWord(x).replace(/^(Sander|Bags)/, m => m + " · " + hm(x.ts)))}</button>`).join("")}</div>` : ""}
   </section>`;
 }
+const mapsQ = p => p.lat != null ? `${p.lat},${p.lng}` : p.addr.replace(/Smtihfield/i, "Smithfield").replace(/\bGW\b/, "George Washington Hwy");
+const mapsBtns = p => { const q = encodeURIComponent(mapsQ(p)), a = encodeURIComponent(p.addr.replace(/Smtihfield/i, "Smithfield"));
+  return `<div class="clgrid"><a class="btn salt" target="_blank" rel="noopener" href="https://maps.apple.com/?daddr=${q}&q=${a}">Apple Maps</a><a class="btn walk" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&destination=${q}">Google Maps</a></div>`; };
+function openMaps(pid) {
+  const p = PROPS[pid]; if (!p) return;
+  modal(`<h2>Directions</h2><div style="font-weight:600;margin-top:-8px">${esc(p.addr)}</div>${mapsBtns(p)}<button class="btn ghost block" id="cancel">Cancel</button>`, (t, close) => { if (t.closest("a")) setTimeout(close, 300); });
+}
 function clockBar() {
   const run = DATA && DATA.run; if (!run) return "";
   return `<section class="panel clockbar"><div><h2 style="margin:0">${esc(run.crew)}</h2><div class="muted small">Clocked in ${fmtWhen(run.started)}</div></div><div class="clock-sm elapsed" data-since="${esc(run.started)}">${dur(Date.now() - new Date(run.started))}</div></section>`;
@@ -298,7 +305,9 @@ function viewStart() {
     <button class="tile salt-tile" data-go="run"><span class="tile-h">Salt</span><span class="muted small">${run ? `${stops} stop${stops === 1 ? "" : "s"} salted` : "Log salting"}</span></button>
     <button class="tile clear-tile" data-go="clear"><span class="tile-h">Clearing</span>${storm}</button></div>`;
   const out = owner && (DATA.active_runs || []).length ? `<section class="panel"><h2>On the clock now</h2><div class="small">${DATA.active_runs.map(r => `<b>${esc(r.crew)}</b> · ${dur(Date.now() - new Date(r.started))} since ${hm(r.started)} · ${r.stops} stop${r.stops === 1 ? "" : "s"}`).join("<br>")}</div></section>` : "";
-  return `<section class="panel"><h2 style="margin:0">Hi, ${esc(AUTH.name)}</h2></section>${shift}${tiles}${out}`;
+  const dp = UI.dirProp && PROPS[UI.dirProp];
+  const dir = `<section class="panel"><h2>Directions</h2><label class="f bigpick" for="dir-prop">Pick a property<select id="dir-prop"><option value="">Select a property…</option>${ROUTES.map(r => `<optgroup label="${esc(r.name)}">${r.props.map(p => `<option value="${p.id}" ${p.id === UI.dirProp ? "selected" : ""}>${esc(p.addr)}</option>`).join("")}</optgroup>`).join("")}</select></label>${dp ? mapsBtns(dp) : ""}</section>`;
+  return `<section class="panel"><h2 style="margin:0">Hi, ${esc(AUTH.name)}</h2></section>${shift}${tiles}${dir}${out}`;
 }
 setInterval(() => document.querySelectorAll(".elapsed").forEach(e => { e.textContent = dur(Date.now() - new Date(e.dataset.since)); }), 20000);
 function viewReport(r) {
@@ -343,8 +352,8 @@ function viewClear() {
   return `${clockBar()}<section class="panel"><div class="runbar"><div><h2>${esc(DATA.storm.name)}</h2><div class="muted small">${done} of ${all.length} properties fully cleared · updates live</div></div>${owner ? `<button class="btn ghost" id="storm-end">End storm</button>` : ""}</div>
     <div class="progress"><i style="width:${all.length ? Math.round(done / all.length * 100) : 0}%"></i></div></section>
     ${ROUTES.map(r => `<h3 class="route-h">${esc(r.name)} · ${r.props.filter(p => !saltOnly(p) && isDone(p)).length}/${r.props.filter(p => !saltOnly(p)).length}</h3>` + r.props.map(p => saltOnly(p)
-      ? `<div class="clear saltonly"><div style="flex:1;min-width:0"><div style="font-weight:700">${esc(p.addr)}</div>${p.client ? `<div class="muted small">${esc(p.client)}</div>` : ""}<div class="small" style="font-weight:600;margin-top:6px">Salt only · no clearing</div></div></div>`
-      : `<div class="clear${isDone(p) ? " done" : ""}${parts(p).some(a => ((cm[p.id] || {})[a] || {}).note) ? " bad" : ""}"><div style="flex:1;min-width:0"><div style="font-weight:700">${esc(p.addr)}</div>${p.client ? `<div class="muted small">${esc(p.client)}</div>` : ""}
+      ? `<div class="clear saltonly"><div style="flex:1;min-width:0"><button class="addrlink" data-maps="${p.id}">${esc(p.addr)} <span class="maptag">Directions</span></button>${p.client ? `<div class="muted small">${esc(p.client)}</div>` : ""}<div class="small" style="font-weight:600;margin-top:6px">Salt only · no clearing</div></div></div>`
+      : `<div class="clear${isDone(p) ? " done" : ""}${parts(p).some(a => ((cm[p.id] || {})[a] || {}).note) ? " bad" : ""}"><div style="flex:1;min-width:0"><button class="addrlink" data-maps="${p.id}">${esc(p.addr)} <span class="maptag">Directions</span></button>${p.client ? `<div class="muted small">${esc(p.client)}</div>` : ""}
         <div class="cks">${parts(p).map(a => box(p, a)).join("")}</div></div></div>`).join("")).join("")}${pastStorms()}`;
 }
 function viewLogs() {
@@ -627,6 +636,7 @@ app.addEventListener("keydown", ev => { if (ev.key === "Enter" && (ev.target.id 
 app.addEventListener("change", ev => {
   const t = ev.target;
   if (t.id === "pick-prop" && t.value) { arriveAt(t.value); return; }
+  if (t.id === "dir-prop") { UI.dirProp = t.value || null; render(); return; }
   if (t.id === "from" || t.id === "to") { UI[t.id] = t.value; UI.ownerData = null; render(); return; }
   if (t.dataset.clear) {
     if (!DATA.storm) return;
@@ -641,6 +651,7 @@ app.addEventListener("click", ev => {
   const t = ev.target.closest("button"); if (!t) return;
   if (t.id === "login") { signIn(); return; }
   if (t.dataset.salted) { openQuick(UI.here, t.dataset.salted); return; }
+  if (t.closest && t.closest("[data-maps]")) { openMaps(t.closest("[data-maps]").dataset.maps); return; }
   if (t.dataset.lognote) { openLogNote(t.dataset.lognote); return; }
   if (t.dataset.entry) { const e = DATA.entries.find(a => a.id === t.dataset.entry); if (e) openEdit(e); return; }
   if (t.id === "finish") { openEndShift(); return; }
