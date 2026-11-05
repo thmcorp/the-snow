@@ -183,3 +183,4 @@ label.f.bigpick{font-size:18px;font-weight:700}
 .gps.fillhead{font-size:18px}
 .clockbar{flex-direction:row;align-items:center;justify-content:space-between}
 .clock-sm{font-family:var(--display);font-size:30px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
+.btn.picked{outline:4px solid var(--ink);outline-offset:2px}

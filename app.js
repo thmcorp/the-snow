@@ -172,7 +172,7 @@ function dataRows(od) {
   const clr = od.clear_log.map(c => ({ ts: c.ts, crew: c.crew, type: "Clearing", prop: c.prop_id, area: c.part, detail: (c.checked ? (c.note ? "Checked, not fully cleared: " + c.note : "Checked cleared") : "Unchecked") + (c.storm_name ? " · " + c.storm_name : "") }));
   return [...salt, ...clr].sort((a, b) => a.ts.localeCompare(b.ts));
 }
-const fillWord = x => x.kind && x.kind.startsWith("empty") ? `Emptied ${x.kind === "empty_bulk" ? "sander" : "bags"}${x.yard ? " · " + x.yard : ""}${x.note ? " · " + x.note : ""}` : x.kind === "bulk" ? `Sander${x.yard ? " · " + x.yard : ""}` : `Bags · ${x.bags || "?"}${x.yard ? " · " + x.yard : ""}`;
+const fillWord = x => x.kind && x.kind.startsWith("left") ? `Left on truck · ${x.kind === "left_bulk" ? "sander" : "bags"}${x.note ? " · " + x.note : ""}` : x.kind && x.kind.startsWith("empty") ? `Emptied ${x.kind === "empty_bulk" ? "sander" : "bags"}${x.yard ? " · " + x.yard : ""}${x.note ? " · " + x.note : ""}` : x.kind === "bulk" ? `Sander${x.yard ? " · " + x.yard : ""}` : `Bags · ${x.bags || "?"}${x.yard ? " · " + x.yard : ""}`;
 const areaWord = r => r.area === "walks" ? "Walkways" : "Parking lots";
 const clearWord = a => a === "drives" ? "Parking lots" : "Walkways";
 const propName = id => (PROPS[id] ? PROPS[id].addr : id);
@@ -188,7 +188,7 @@ function exportXlsx(od) {
   sheetRows(od.entries).forEach(r => { if (r.heading) { if (aoa.length > 2) aoa.push([]); aoa.push([r.heading]); aoa.push([]); } else aoa.push([r.prop, "", r.drives, r.nowalk ? "" : r.walks]); });
   const ws = XLSX.utils.aoa_to_sheet(aoa); ws["!cols"] = [{ wch: 60 }, { wch: 2 }, { wch: 70 }, { wch: 55 }];
   const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Main log");
-  const fl = [["Date", "Time", "Driver", "Filled with", "Bags", "Yard", "Notes"], ...od.fills.map(x => [md(x.ts), hm(x.ts), x.crew, x.kind === "bulk" ? "Sander" : x.kind === "bags" ? "Bags" : x.kind === "empty_bulk" ? "Emptied sander" : "Emptied bags", x.bags || "", x.yard || "", x.note || ""])];
+  const fl = [["Date", "Time", "Driver", "Filled with", "Bags", "Yard", "Notes"], ...od.fills.map(x => [md(x.ts), hm(x.ts), x.crew, x.kind === "bulk" ? "Sander" : x.kind === "bags" ? "Bags" : x.kind === "empty_bulk" ? "Emptied sander" : x.kind === "empty_bags" ? "Emptied bags" : x.kind === "left_bulk" ? "Left on truck (sander)" : "Left on truck (bags)", x.bags || "", x.yard || "", x.note || ""])];
   const ws3 = XLSX.utils.aoa_to_sheet(fl); ws3["!cols"] = [{ wch: 7 }, { wch: 6 }, { wch: 14 }, { wch: 11 }, { wch: 6 }, { wch: 12 }]; XLSX.utils.book_append_sheet(wb, ws3, "Salt fill-ups");
   const det = [["Date", "Time", "Driver", "Type", "Property", "Area", "Detail"], ...dataRows(od).map(r => [md(r.ts), hm(r.ts), r.crew, r.type, PROPS[r.prop] ? PROPS[r.prop].label : r.prop, areaWord(r), r.detail])];
   const ws2 = XLSX.utils.aoa_to_sheet(det); ws2["!cols"] = [{ wch: 7 }, { wch: 6 }, { wch: 14 }, { wch: 10 }, { wch: 60 }, { wch: 12 }, { wch: 30 }]; XLSX.utils.book_append_sheet(wb, ws2, "Log data");
@@ -389,7 +389,7 @@ function viewHome() {
   const cfgMissing = !CFG.SUPABASE_URL || !CFG.SUPABASE_ANON_KEY;
   return `<section class="home">
     <div class="brand">THM Snow</div>
-    <div class="muted">Salt and clearing log</div>
+    <div class="muted">Salt &amp; Clearing Log</div>
     <section class="panel" style="width:100%;text-align:left">
       <label class="f" for="login-name">Your name<input type="text" id="login-name" placeholder="Type your name" autocomplete="name" value="${esc(LS.get("lastName", ""))}"></label>
       <label class="f" for="login-pin">PIN<input type="password" id="login-pin" inputmode="numeric" autocomplete="current-password" placeholder="Crew PIN"></label>
@@ -454,8 +454,24 @@ function openEndShift() {
   const step1 = () => modal(`<h2>End your shift</h2><p style="margin:0;font-weight:600">Was all salt emptied out of the truck?</p>
     <div class="clgrid"><button class="btn yes huge" id="em-yes">Yes</button><button class="btn bad huge" id="em-no">No</button></div>
     <button class="btn ghost block" id="cancel">Cancel</button>`, x => {
-      if (x.id === "em-no") { document.getElementById("modal").innerHTML = ""; endShift(); }
+      if (x.id === "em-no") stepUsed();
       else if (x.id === "em-yes") step2(); });
+  const stepUsed = () => modal(`<h2>End your shift</h2><p style="margin:0;font-weight:600">Was all salt on the truck used during your shift?</p>
+    <div class="clgrid"><button class="btn yes huge" id="used-yes">Yes</button><button class="btn bad huge" id="used-no">No</button></div>
+    <button class="btn ghost block" id="cancel">Cancel</button>`, x => {
+      if (x.id === "used-yes") { document.getElementById("modal").innerHTML = ""; endShift(); }
+      else if (x.id === "used-no") stepLeft(); });
+  const stepLeft = () => { modal(`<h2>Salt left on the truck</h2>
+    <div class="clgrid"><button class="btn salt" data-leftkind="left_bulk">Sander</button><button class="btn walk" data-leftkind="left_bags">Bags</button></div>
+    <div class="notewrap"><label class="f" for="left-note">About how much is left?<textarea id="left-note" rows="3" placeholder="e.g. quarter of the sander, 5 bags"></textarea></label>
+    <button class="btn bad block huge" id="left-done">End shift</button></div>
+    <button class="btn ghost block" id="cancel">Cancel</button>`, x => {
+      const k = x.closest("[data-leftkind]"); if (k) { E.left = k.dataset.leftkind; document.querySelectorAll("[data-leftkind]").forEach(b => b.classList.toggle("picked", b === k)); return; }
+      if (x.id !== "left-done") return;
+      if (!E.left) { toast("Pick sander or bags"); return; }
+      const n = document.getElementById("left-note").value.trim(); if (!n) { toast("Write about how much is left"); return; }
+      document.getElementById("modal").innerHTML = "";
+      send("empty", { id: uuid(), kind: E.left, yard: null, note: n, run_id: DATA.run.id, ts: nowIso() }); endShift(); }); };
   const step2 = () => modal(`<h2>Salt emptied out</h2><div class="muted small" style="margin-top:-8px">At what Storage Facility was it emptied?</div>
     <div class="locs small-locs">${YARDS_BAGS.map(l => `<button class="btn walk" data-emloc="${l}">${l}</button>`).join("")}</div>
     <button class="btn ghost block" id="cancel">Cancel</button>`, x => { const l = x.closest("[data-emloc]"); if (l) { E.yard = l.dataset.emloc; step3(); } });
