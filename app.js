@@ -238,8 +238,9 @@ function fillCard() {
 function myLogCard() {
   const mine = (DATA.run && DATA.entries) || []; if (!mine.length) return "";
   const g = []; mine.slice().sort((a, b) => a.ts.localeCompare(b.ts)).forEach(e => { let x = g.find(y => y.id === e.prop_id); if (!x) g.push(x = { id: e.prop_id, items: [] }); x.items.push(e); });
-  return `<section class="panel"><h2>Your log this shift</h2><div class="muted small">${g.length} propert${g.length === 1 ? "y" : "ies"} salted · tap an entry to fix it</div>
-    <div class="sumlist">${g.map(x => `<div class="sumrow"><div style="font-weight:700">${esc(propName(x.id))}</div><div class="logged">${x.items.map(e => `<button class="entry" data-entry="${e.id}">${e.area === "drives" ? "Parking lots" : "Walks"} · ${amtWord(e.amt)}</button>`).join("")}</div></div>`).join("")}</div></section>`;
+  return `<section class="panel"><h2>Your log this shift</h2><div class="muted small">${g.length} propert${g.length === 1 ? "y" : "ies"} salted · tap a property to see its log, then tap an entry to fix it</div>
+    <div class="proplist">${g.map(x => `<details class="propitem"${UI.openLog === x.id ? " open" : ""} data-log="${x.id}"><summary><span>${esc(propName(x.id))}</span><span class="muted small">${x.items.length} entr${x.items.length === 1 ? "y" : "ies"}</span></summary>
+      <div class="logged">${x.items.map(e => `<button class="entry" data-entry="${e.id}">${e.area === "drives" ? "Parking lots" : "Walks"} · ${amtWord(e.amt)}</button>`).join("")}</div></details>`).join("")}</div></section>`;
 }
 function viewRun() {
   const run = DATA.run;
@@ -546,6 +547,7 @@ app.addEventListener("change", ev => {
     t.checked = false; openClearCheck(t.dataset.clear, t.dataset.part);
   }
 });
+app.addEventListener("toggle", ev => { const d = ev.target; if (d.dataset && d.dataset.log) { if (d.open) UI.openLog = d.dataset.log; else if (UI.openLog === d.dataset.log) UI.openLog = null; } }, true);
 app.addEventListener("pointerdown", ev => { const b = ev.target.closest(".btn,.tile"); if (!b) return; b.classList.add("pressed"); if (navigator.vibrate && b.closest(".shift,.tiles")) navigator.vibrate(15); setTimeout(() => b.classList.remove("pressed"), 160); });
 app.addEventListener("click", ev => {
   const cr = ev.target.closest("[data-crew]"); if (cr) { openCrewHistory(cr.dataset.crew); return; }
