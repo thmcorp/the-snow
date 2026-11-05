@@ -237,8 +237,8 @@ function viewRun() {
   if (UI.report) return viewReport(UI.report);
   const run = DATA.run;
   const here = UI.here ? PROPS[UI.here] : null;
-  if (!run) {
-    return `<section class="arrive waiting">${gpsLine(false)}<div class="muted small">Start your run on Home. If you forget, it starts by itself when you pull into your first property.</div>${propSelect()}</section>${fillCard()}`;
+  if (!run && !here) {
+    return `<section class="arrive waiting">${gpsLine(false)}<div class="muted small">Clock in on Home. If you forget, you're clocked in automatically when you log your first salting.</div>${propSelect()}</section>${fillCard()}`;
   }
   const mine = DATA.entries || [];
   const stops = new Set(mine.map(a => a.prop_id)).size, total = allProps().length;
@@ -255,7 +255,7 @@ function viewRun() {
       </div>
       ${owner ? `<button class="linkbtn" id="save-spot" style="align-self:flex-start">${here.lat != null ? "Update" : "Save"} GPS location for this property (stand on the lot)</button>` : ""}
     </section>` : `<section class="arrive waiting">${gpsLine(false)}</section>`;
-  return `<section class="panel"><div class="runbar"><div><h2>${esc(run.crew)}'s run</h2><div class="muted small">Started ${fmtWhen(run.started)} · ${stops} of ${total} stop${total === 1 ? "" : "s"} salted</div></div></div></section>
+  return `${run ? `<section class="panel"><div class="runbar"><div><h2>${esc(run.crew)}</h2><div class="muted small">Clocked in ${fmtWhen(run.started)} · ${stops} of ${total} stop${total === 1 ? "" : "s"} salted</div></div></div></section>` : ""}
     ${arrival}
     <section class="panel">${propSelect()}</section>
     ${fillCard()}`;
@@ -268,7 +268,7 @@ function viewStart() {
   const shift = run
     ? `<section class="arrive shift"><div class="gps"><span class="dot"></span>On the clock</div>
         <div class="clock" id="elapsed" data-since="${esc(run.started)}">${dur(Date.now() - new Date(run.started))}</div>
-        <div class="muted small">Started ${fmtWhen(run.started)}</div>
+        <div class="muted small">Clocked in ${fmtWhen(run.started)}</div>
         <button class="btn bad block huge" id="finish">End</button></section>`
     : `<section class="arrive waiting shift"><div class="gps"><span class="dot off"></span>Off the clock</div>
         <div class="muted small">Tap Start when you get in the truck. Tap End when you're done.</div>
@@ -330,7 +330,7 @@ function viewLogs() {
   const rows = dataRows(od).reverse();
   const any = od.entries.length || od.fills.length || od.clear_log.length;
   return `<section class="panel"><div class="runbar"><div><h2>Main salt log</h2><div class="gps" style="margin-top:4px"><span class="dot"></span>Live${last ? ` · last entry ${fmtWhen(last.ts)} by ${esc(last.crew)}` : ""}</div></div></div>
-    ${active.length ? `<div class="small">${active.map(r => `<b>${esc(r.crew)}</b> is out now · started ${hm(r.started)} · ${r.stops} stop${r.stops === 1 ? "" : "s"} so far`).join("<br>")}</div>` : `<div class="muted small">No drivers out right now.</div>`}
+    ${active.length ? `<div class="small">${active.map(r => `<b>${esc(r.crew)}</b> is on the clock · since ${hm(r.started)} · ${r.stops} stop${r.stops === 1 ? "" : "s"} so far`).join("<br>")}</div>` : `<div class="muted small">Nobody is on the clock right now.</div>`}
     <div class="muted small">New entries show up here within a few seconds of a driver tapping Salted. Entries from the last 15 minutes are highlighted.</div>
     <div class="row"><label class="f" for="from">From<input type="date" id="from" value="${UI.from}"></label><label class="f" for="to">To<input type="date" id="to" value="${UI.to}"></label></div>
     <button class="btn salt" id="dl-range" ${any ? "" : "disabled"}>Download Excel log (${od.entries.length} entries)</button></section>
@@ -350,7 +350,7 @@ function viewCrew() {
     const isOn = !x.signed_out && !stale(x);
     return `<div class="runitem"><div style="min-width:0"><b>${esc(x.name)}</b>${x.role === "owner" ? ' <span class="muted small">owner</span>' : ""}
       <div class="muted small">Signed in ${fmtWhen(x.signed_in)}${x.signed_out ? ` · signed out ${fmtWhen(x.signed_out)}` : ` · last seen ${fmtWhen(x.last_seen)}`}</div>
-      ${run && isOn ? `<div class="small" style="color:var(--ok);font-weight:600">On a salt run · ${run.stops} stop${run.stops === 1 ? "" : "s"}${here ? ` · at ${esc(here)}` : ""}</div>` : ""}</div>
+      ${run && isOn ? `<div class="small" style="color:var(--ok);font-weight:600">On the clock · ${run.stops} stop${run.stops === 1 ? "" : "s"}${here ? ` · at ${esc(here)}` : ""}</div>` : ""}</div>
       ${isOn ? '<span class="dot"></span>' : ""}</div>`; };
   const located = allProps().filter(p => p.lat != null).length;
   return `<section class="panel"><h2>Signed in now</h2><div class="muted small">${on.length} ${on.length === 1 ? "person" : "people"} signed in</div><div class="runs">${on.map(row).join("") || '<p class="muted">Nobody is signed in.</p>'}</div></section>
@@ -390,7 +390,6 @@ function render() {
 // ---------- actions ----------
 function toast(msg) { const t = document.getElementById("toast"); t.textContent = msg; t.hidden = false; clearTimeout(toast._t); toast._t = setTimeout(() => t.hidden = true, 2800); }
 function arriveAt(pid, auto) {
-  if (!DATA.run) send("start_run", { id: uuid(), ts: nowIso() });
   UI.here = pid; LS.set("here", pid); UI.report = null;
   render(); window.scrollTo(0, 0);
   if (auto && navigator.vibrate) navigator.vibrate(200);
@@ -426,6 +425,7 @@ function openQuick(pid, area) {
     <details><summary class="muted small">Add a note</summary><input type="text" id="q-note" placeholder="e.g. back, extra removal time" style="margin-top:8px"></details>
     <button class="btn ghost block" id="cancel">Cancel</button>`, (t, close) => {
     const log = amt => { const note = (document.getElementById("q-note").value || "").trim(); close();
+      if (!DATA.run) send("start_run", { id: uuid(), ts: nowIso() });
       send("salt", { id: uuid(), run_id: DATA.run ? DATA.run.id : null, prop_id: p.id, area, amt, note, ts: nowIso() });
       toast(`Logged ${area === "drives" ? "parking lots" : "walkways"} · ${amtWord(amt)}`); };
     const q = t.closest("[data-q]");
@@ -491,7 +491,7 @@ async function geocodeMissing(btn) {
 // ---------- events ----------
 document.getElementById("who-bar").addEventListener("click", ev => {
   if (ev.target.id !== "logout") return;
-  if (DATA && DATA.run) { toast("Finish your run before signing out"); return; }
+  if (DATA && DATA.run) { toast("Tap End on Home before signing out"); return; }
   confirmBox("Sign out?", "You'll need your name and PIN to sign back in.", "Sign out", async () => {
     try { await rpc("logout", { session: AUTH.session }); } catch (e) {}
     signOutLocal();
