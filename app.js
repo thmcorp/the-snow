@@ -454,13 +454,13 @@ function openEndShift() {
   const step1 = () => modal(`<h2>End your shift</h2><p style="margin:0;font-weight:600">Was all salt emptied out of the truck?</p>
     <div class="clgrid"><button class="btn yes huge" id="em-yes">Yes</button><button class="btn bad huge" id="em-no">No</button></div>
     <button class="btn ghost block" id="cancel">Cancel</button>`, x => {
-      if (x.id === "em-no") stepUsed();
+      if (x.id === "em-no") stepLeft();
       else if (x.id === "em-yes") step2(); });
   const stepUsed = () => modal(`<h2>End your shift</h2><p style="margin:0;font-weight:600">Was all salt on the truck used during your shift?</p>
     <div class="clgrid"><button class="btn yes huge" id="used-yes">Yes</button><button class="btn bad huge" id="used-no">No</button></div>
     <button class="btn ghost block" id="cancel">Cancel</button>`, x => {
       if (x.id === "used-yes") { document.getElementById("modal").innerHTML = ""; endShift(); }
-      else if (x.id === "used-no") stepLeft(); });
+      else if (x.id === "used-no") step1(); });
   const stepLeft = () => { modal(`<h2>Salt left on the truck</h2>
     <div class="clgrid"><button class="btn salt" data-leftkind="left_bulk">Sander</button><button class="btn walk" data-leftkind="left_bags">Bags</button></div>
     <div class="notewrap"><label class="f" for="left-note">About how much is left?<textarea id="left-note" rows="3" placeholder="e.g. quarter of the sander, 5 bags"></textarea></label>
@@ -487,7 +487,7 @@ function openEndShift() {
       document.getElementById("modal").innerHTML = "";
       send("empty", { id: uuid(), kind: E.kind, yard: E.yard, note: n, run_id: DATA.run.id, ts: nowIso() }); endShift(); });
     document.getElementById("em-note").focus(); };
-  step1();
+  stepUsed();
 }
 function openClearCheck(pid, part) {
   const p = PROPS[pid], storm = DATA.storm; if (!p || !storm) return;
