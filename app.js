@@ -261,29 +261,35 @@ function viewRun() {
     <section class="panel">${propSelect()}</section>
     ${fillCard()}`;
 }
+const dur = ms => { const m = Math.max(0, Math.floor(ms / 60000)), h = Math.floor(m / 60); return h ? `${h}h ${m % 60}m` : `${m}m`; };
 function viewStart() {
   if (UI.report) return viewReport(UI.report);
   const run = DATA.run, owner = AUTH.role === "owner";
   const mine = DATA.entries || [], stops = new Set(mine.map(a => a.prop_id)).size;
-  const runCard = run
-    ? `<section class="arrive"><div class="gps"><span class="dot"></span>Salt run in progress</div>
-        <div><div class="addr-big">${esc(AUTH.name)}'s run</div><div class="muted small">Started ${fmtWhen(run.started)} · ${stops} stop${stops === 1 ? "" : "s"} salted</div></div>
-        <div class="acts"><button class="btn salt huge" data-go="run">Go to Salt</button><button class="btn bad huge" id="finish">Finish run</button></div></section>`
-    : `<section class="arrive waiting"><h2>Ready to salt?</h2><div class="muted small">Start your run when you head out. Finish it when you're done for the day.</div>
-        <button class="btn salt block huge" id="start-run">Start salt run</button></section>`;
-  let stormCard = "";
+  const shift = run
+    ? `<section class="arrive shift"><div class="gps"><span class="dot"></span>On the clock</div>
+        <div class="clock" id="elapsed" data-since="${esc(run.started)}">${dur(Date.now() - new Date(run.started))}</div>
+        <div class="muted small">Started ${fmtWhen(run.started)}</div>
+        <button class="btn bad block huge" id="finish">End</button></section>`
+    : `<section class="arrive waiting shift"><div class="gps"><span class="dot off"></span>Off the clock</div>
+        <div class="muted small">Tap Start when you get in the truck. Tap End when you're done.</div>
+        <button class="btn yes block huge" id="start-run">Start</button></section>`;
+  let storm = `<div class="muted small">No storm right now</div>`;
   if (DATA.storm) {
     const cm = {}; (DATA.clears || []).forEach(c => { (cm[c.prop_id] = cm[c.prop_id] || {})[c.part] = c; });
     const all = allProps(); const done = all.filter(p => (p.walks ? ["drives", "walks"] : ["drives"]).every(a => (cm[p.id] || {})[a])).length;
-    stormCard = `<section class="panel"><h2>${esc(DATA.storm.name)}</h2><div class="muted small">Storm in progress · ${done} of ${all.length} properties fully cleared</div>
-      <button class="btn block" data-go="clear">Open clearing checklist</button></section>`;
+    storm = `<div class="small" style="font-weight:600">${esc(DATA.storm.name)}</div><div class="muted small">${done} of ${all.length} cleared</div>`;
   }
-  const out = owner && (DATA.active_runs || []).length ? `<section class="panel"><h2>Out now</h2><div class="small">${DATA.active_runs.map(r => `<b>${esc(r.crew)}</b> · started ${hm(r.started)} · ${r.stops} stop${r.stops === 1 ? "" : "s"}`).join("<br>")}</div></section>` : "";
-  return `<section class="panel"><h2 style="margin:0">Hi, ${esc(AUTH.name)}</h2></section>${runCard}${stormCard}${out}`;
+  const tiles = `<div class="tiles">
+    <button class="tile salt-tile" data-go="run"><span class="tile-h">Salt</span><span class="muted small">${run ? `${stops} stop${stops === 1 ? "" : "s"} salted` : "Log salting"}</span></button>
+    <button class="tile clear-tile" data-go="clear"><span class="tile-h">Clearing</span>${storm}</button></div>`;
+  const out = owner && (DATA.active_runs || []).length ? `<section class="panel"><h2>On the clock now</h2><div class="small">${DATA.active_runs.map(r => `<b>${esc(r.crew)}</b> · ${dur(Date.now() - new Date(r.started))} since ${hm(r.started)} · ${r.stops} stop${r.stops === 1 ? "" : "s"}`).join("<br>")}</div></section>` : "";
+  return `<section class="panel"><h2 style="margin:0">Hi, ${esc(AUTH.name)}</h2></section>${shift}${tiles}${out}`;
 }
+setInterval(() => { const e = document.getElementById("elapsed"); if (e) e.textContent = dur(Date.now() - new Date(e.dataset.since)); }, 20000);
 function viewReport(r) {
-  return `<section class="arrive"><div class="gps"><span class="dot"></span>Run finished</div>
-    <h2>Nice work, ${esc(r.crew)}</h2>
+  return `<section class="arrive"><div class="gps"><span class="dot"></span>Shift ended</div>
+    <h2>Nice work, ${esc(r.crew)}</h2>${r.time ? `<div class="muted">On the clock for ${r.time}</div>` : ""}
     <div class="stats"><div class="stat"><b>${r.stops}</b>stops</div><div class="stat"><b>${r.drives}</b>parking lots</div><div class="stat"><b>${r.walks}</b>walkways</div></div>
     <div class="muted">Everything you logged is already in the main log.</div>
     <button class="btn salt block" id="new-run">Done</button></section>`;
@@ -510,12 +516,12 @@ app.addEventListener("click", ev => {
   if (t.id === "login") { signIn(); return; }
   if (t.dataset.salted) { openQuick(UI.here, t.dataset.salted); return; }
   if (t.dataset.entry) { const e = DATA.entries.find(a => a.id === t.dataset.entry); if (e) openEdit(e); return; }
-  if (t.id === "finish") { confirmBox("Finish this run?", "Your entries are already in the main log.", "Finish run", () => {
+  if (t.id === "finish") { confirmBox("End your shift?", "Your entries are already in the main log.", "End", () => {
       const mine = DATA.entries || [];
-      UI.report = { crew: DATA.run.crew, stops: new Set(mine.map(a => a.prop_id)).size, drives: mine.filter(a => a.area === "drives").length, walks: mine.filter(a => a.area === "walks").length };
+      UI.report = { time: dur(Date.now() - new Date(DATA.run.started)), crew: DATA.run.crew, stops: new Set(mine.map(a => a.prop_id)).size, drives: mine.filter(a => a.area === "drives").length, walks: mine.filter(a => a.area === "walks").length };
       send("finish_run", { id: DATA.run.id, ts: nowIso() }); UI.here = null; LS.del("here"); render(); window.scrollTo(0, 0); }); return; }
   if (t.id === "new-run") { UI.report = null; render(); return; }
-  if (t.id === "start-run") { if (!DATA.run) send("start_run", { id: uuid(), ts: nowIso() }); UI.tab = "run"; LS.set("tab", "run"); startGps(); render(); window.scrollTo(0, 0); toast("Salt run started"); return; }
+  if (t.id === "start-run") { if (!DATA.run) send("start_run", { id: uuid(), ts: nowIso() }); startGps(); render(); toast("You're on the clock"); return; }
   if (t.dataset.go) { UI.tab = t.dataset.go; LS.set("tab", UI.tab); render(); window.scrollTo(0, 0); return; }
   if (t.id === "save-spot") {
     const pos = UI.gps.pos; if (!pos) { toast("Waiting for GPS. Make sure location is allowed."); startGps(); return; }

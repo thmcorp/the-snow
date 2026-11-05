@@ -145,3 +145,10 @@ td.badcell{color:#c62828;background:var(--bad-bg);font-weight:600}
 .arrive.fillcard{margin-top:40px}
 label.f.bigpick{font-size:18px;font-weight:700}
 .bigpick select{font-size:20px;padding:16px 14px;min-height:60px;font-weight:600}
+.clock{font-family:var(--display);font-size:52px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.tile{display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-start;gap:6px;min-height:130px;padding:18px;border-radius:14px;background:var(--surface);border:2px solid var(--line);text-align:left;color:var(--ink);font:inherit;cursor:pointer}
+.tile-h{font-family:var(--display);font-size:28px;font-weight:700}
+.salt-tile{border-color:var(--salt)}
+.clear-tile{border-color:var(--accent)}
+.btn.yes{background:var(--ok);color:#fff;border-color:var(--ok)}
