@@ -255,8 +255,7 @@ function viewRun() {
       </div>
       ${owner ? `<button class="linkbtn" id="save-spot" style="align-self:flex-start">${here.lat != null ? "Update" : "Save"} GPS location for this property (stand on the lot)</button>` : ""}
     </section>` : `<section class="arrive waiting">${gpsLine(false)}</section>`;
-  return `<section class="panel"><div class="runbar"><div><h2>${esc(run.crew)}'s run</h2><div class="muted small">Started ${fmtWhen(run.started)} · ${stops} of ${total} stop${total === 1 ? "" : "s"} salted</div></div>
-    <button class="btn" id="finish">Finish run</button></div></section>
+  return `<section class="panel"><div class="runbar"><div><h2>${esc(run.crew)}'s run</h2><div class="muted small">Started ${fmtWhen(run.started)} · ${stops} of ${total} stop${total === 1 ? "" : "s"} salted</div></div></div></section>
     ${arrival}
     <section class="panel">${propSelect()}</section>
     ${fillCard()}`;
