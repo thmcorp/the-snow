@@ -205,7 +205,7 @@ function startGps() {
     let best = null, bd = Infinity;
     allProps().forEach(p => { if (p.lat == null) return; const dd = distM(pos.coords.latitude, pos.coords.longitude, p.lat, p.lng); if (dd < bd) { bd = dd; best = p; } });
     if (best && bd <= GPS_RADIUS_M) {
-      if (best.id !== UI.here && best.id !== UI.lastAuto && AUTH && UI.tab === "run" && !UI.report) { UI.lastAuto = best.id; arriveAt(best.id, true); }
+      if (best.id !== UI.here && best.id !== UI.lastAuto && AUTH && UI.tab === "run") { UI.lastAuto = best.id; arriveAt(best.id, true); }
     } else if (UI.lastAuto && bd > GPS_RADIUS_M * 2) UI.lastAuto = null;
   }, err => { UI.gps.status = err.code === 1 ? "denied" : "error"; if (UI.tab === "run") render(); },
   { enableHighAccuracy: true, maximumAge: 10000, timeout: 30000 });
@@ -234,7 +234,6 @@ function fillCard() {
   </section>`;
 }
 function viewRun() {
-  if (UI.report) return viewReport(UI.report);
   const run = DATA.run;
   const here = UI.here ? PROPS[UI.here] : null;
   if (!run && !here) {
@@ -403,7 +402,7 @@ function render() {
 // ---------- actions ----------
 function toast(msg) { const t = document.getElementById("toast"); t.textContent = msg; t.hidden = false; clearTimeout(toast._t); toast._t = setTimeout(() => t.hidden = true, 2800); }
 function arriveAt(pid, auto) {
-  UI.here = pid; LS.set("here", pid); UI.report = null;
+  UI.here = pid; LS.set("here", pid);
   render(); window.scrollTo(0, 0);
   if (auto && navigator.vibrate) navigator.vibrate(200);
   refresh();
@@ -411,7 +410,7 @@ function arriveAt(pid, auto) {
 function modal(html, onClick) { const m = document.getElementById("modal"); m.innerHTML = `<div class="sheet-bg" id="sbg"><div class="sheet" role="dialog">${html}</div></div>`;
   m.onclick = ev => { const t = ev.target; if (t.id === "sbg" || t.id === "cancel") { m.innerHTML = ""; return; } onClick(t, () => { m.innerHTML = ""; }); }; }
 function confirmBox(title, body, okLabel, onOk) {
-  modal(`<h2>${esc(title)}</h2><p class="muted" style="margin:0">${esc(body)}</p><button class="btn salt block" id="ok">${esc(okLabel)}</button><button class="btn ghost block" id="cancel">Cancel</button>`,
+  modal(`<h2>${esc(title)}</h2>${body ? `<p class="muted" style="margin:0">${esc(body)}</p>` : ""}<button class="btn salt block" id="ok">${esc(okLabel)}</button><button class="btn ghost block" id="cancel">Cancel</button>`,
     (t, close) => { if (t.id === "ok") { close(); onOk(); } });
 }
 async function openCrewHistory(name) {
@@ -432,7 +431,7 @@ function openClearCheck(pid, part) {
   modal(`<div class="muted small" style="text-transform:uppercase;letter-spacing:.08em;font-weight:700">${clearWord(part)}</div><h2 style="margin-top:-8px">Fully cleared?</h2><div class="muted small" style="margin-top:-8px">${esc(p.addr)}</div>
     <p style="margin:0;font-weight:600">${ask}</p>
     <div class="clgrid"><button class="btn yes huge" id="cl-yes">Yes, fully cleared</button><button class="btn bad huge" id="cl-no">Couldn't fully clear</button></div>
-    <div id="cl-note-wrap" hidden><label class="f" for="cl-note">What couldn't be cleared?<textarea id="cl-note" rows="3" placeholder="e.g. cars parked in back row, dumpster blocked"></textarea></label>
+    <div id="cl-note-wrap" class="notewrap" hidden><label class="f" for="cl-note">What couldn't be cleared?<textarea id="cl-note" rows="3" placeholder="e.g. cars parked in back row, dumpster blocked"></textarea></label>
       <button class="btn salt block" id="cl-save">Check off with note</button></div>
     <button class="btn ghost block" id="cancel">Cancel</button>`, (x, close) => {
     const go = note => { close(); if (!DATA.storm || DATA.storm.id !== storm.id) return;
@@ -543,7 +542,7 @@ app.addEventListener("click", ev => {
   if (t.id === "login") { signIn(); return; }
   if (t.dataset.salted) { openQuick(UI.here, t.dataset.salted); return; }
   if (t.dataset.entry) { const e = DATA.entries.find(a => a.id === t.dataset.entry); if (e) openEdit(e); return; }
-  if (t.id === "finish") { confirmBox("End your shift?", "Your entries are already in the main log.", "End", () => {
+  if (t.id === "finish") { confirmBox("End your shift?", "", "End", () => {
       const mine = DATA.entries || [];
       UI.report = { time: dur(Date.now() - new Date(DATA.run.started)), started: DATA.run.started, ended: nowIso(), crew: DATA.run.crew, entries: mine.slice().sort((a, b) => a.ts.localeCompare(b.ts)),
         fills: (DATA.fills || []).filter(f => f.ts >= DATA.run.started).sort((a, b) => a.ts.localeCompare(b.ts)),
