@@ -242,7 +242,9 @@ function fillCard() {
 }
 const mapsQ = p => p.lat != null ? `${p.lat},${p.lng}` : p.addr.replace(/Smtihfield/i, "Smithfield").replace(/\bGW\b/, "George Washington Hwy");
 const mapsBtns = p => { const q = encodeURIComponent(mapsQ(p)), a = encodeURIComponent(p.addr.replace(/Smtihfield/i, "Smithfield"));
-  return `<div class="clgrid"><a class="btn salt" target="_blank" rel="noopener" href="https://maps.apple.com/?daddr=${q}&q=${a}">Apple Maps</a><a class="btn walk" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&destination=${q}">Google Maps</a></div>`; };
+  const ua = navigator.userAgent, ios = /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1), android = /Android/.test(ua);
+  const href = ios ? `https://maps.apple.com/?daddr=${q}&q=${a}` : android ? `geo:0,0?q=${q}` : `https://www.google.com/maps/dir/?api=1&destination=${q}`;
+  return `<a class="btn yes block huge"${android ? "" : ' target="_blank" rel="noopener"'} href="${href}">Go</a>`; };
 const hasMap = id => (UI.maps || LS.get("maps") || []).includes(id);
 const siteBtns = p => `<div class="sitebtns"><button class="btn ghost sm" data-maps="${p.id}">Directions</button>${hasMap(p.id) ? `<button class="btn ghost sm" data-sitemap="${p.id}">Site Map</button>` : ""}</div>`;
 async function openSiteMap(pid) {
