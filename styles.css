@@ -9,7 +9,7 @@ img{max-width:100%}
   --bg:#e4e9ee; --surface:#ffffff; --ink:#16212c; --muted:#5a6876; --line:#cdd5de;
   --accent:#1d4f7c; --accent-ink:#ffffff; --salt:#e8650f; --salt-ink:#ffffff;
   --bar:#17324d; --bar-ink:#ffffff;
-  --ok:#1f7a4d; --ok-bg:#e3f3ea; --warn-bg:#fdeee3;
+  --ok:#1f7a4d; --ok-bg:#e3f3ea; --bad-bg:#f7d9d6; --warn-bg:#fdeee3;
   --display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
   --body:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif;
 }
@@ -17,12 +17,12 @@ img{max-width:100%}
   --bg:#10171e; --surface:#1a2430; --ink:#e7edf3; --muted:#9aa8b6; --line:#2c3a48;
   --accent:#6aa8df; --accent-ink:#06121e; --salt:#f27a2a; --salt-ink:#1a0d00;
   --bar:#0c1a28; --bar-ink:#e7edf3;
-  --ok:#5fd19a; --ok-bg:#163326; --warn-bg:#3a2414; color-scheme:dark}}
+  --ok:#5fd19a; --ok-bg:#163326; --bad-bg:#3a1717; --warn-bg:#3a2414; color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#10171e; --surface:#1a2430; --ink:#e7edf3; --muted:#9aa8b6; --line:#2c3a48;
   --accent:#6aa8df; --accent-ink:#06121e; --salt:#f27a2a; --salt-ink:#1a0d00;
   --bar:#0c1a28; --bar-ink:#e7edf3;
-  --ok:#5fd19a; --ok-bg:#163326; --warn-bg:#3a2414; color-scheme:dark}
+  --ok:#5fd19a; --ok-bg:#163326; --bad-bg:#3a1717; --warn-bg:#3a2414; color-scheme:dark}
 *{box-sizing:border-box}
 body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.4;padding-bottom:84px}
 body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bar)}
@@ -136,9 +136,9 @@ textarea{resize:vertical}
 .clgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .clgrid .btn{min-height:76px;white-space:normal;line-height:1.15}
 .btn.bad{background:#c62828;color:#fff;border-color:#c62828}
-.ck.bad{border-color:#c62828;background:#fdecea}
+.ck.bad{border-color:#c62828;background:var(--bad-bg)}
 .ck.bad input{accent-color:#c62828}
 .ck.bad small{color:#c62828;white-space:normal}
-.clear.bad{background:#fdecea;border-color:#c62828}
-td.badcell{color:#c62828;background:#fdecea;font-weight:600}
+.clear.bad{background:var(--bad-bg);border-color:#c62828}
+td.badcell{color:#c62828;background:var(--bad-bg);font-weight:600}
 .clgrid .btn.yes{background:var(--ok);color:#fff;border-color:var(--ok)}
