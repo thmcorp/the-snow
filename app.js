@@ -100,7 +100,7 @@ async function flush() {
   try {
     while (OUTBOX.length) {
       const item = OUTBOX[0];
-      try { await rpc(item.action, item.data, item.action === "empty" ? "log_empty" : undefined); setOnline(true); }
+      try { await rpc(item.action, item.data, item.action === "empty" ? "log_empty" : item.action === "shift_note" ? "shift_note" : undefined); setOnline(true); }
       catch (e) {
         if (e.code === "network" || e.code === "config" || (e.status && e.status >= 500)) { setOnline(false); break; }
         if (e.code === "bad_pin") { signOutLocal("Your PIN changed. Sign in again."); break; }
@@ -127,8 +127,10 @@ async function refresh() {
   if (!document.getElementById("modal").innerHTML && !isTyping()) render();
 }
 async function loadOwnerData() {
-  try { UI.ownerData = await rpc("owner_data", { from: UI.from || null, to: UI.to || null }); }
-  catch (e) { if (!UI.ownerData) UI.ownerData = { entries: [], fills: [], clear_log: [] }; }
+  try { const od = await rpc("owner_data", { from: UI.from || null, to: UI.to || null });
+    try { od.notes = await rpc("list", { from: UI.from || null, to: UI.to || null }, "shift_note"); } catch (e) { od.notes = (UI.ownerData && UI.ownerData.notes) || []; }
+    UI.ownerData = od; }
+  catch (e) { if (!UI.ownerData) UI.ownerData = { entries: [], fills: [], clear_log: [], notes: [] }; }
 }
 const isTyping = () => { const a = document.activeElement; return a && (a.tagName === "INPUT" || a.tagName === "SELECT") && a.closest("#app"); };
 function setOnline(on) {
@@ -170,10 +172,11 @@ function tableHTML(entries) {
 function dataRows(od) {
   const salt = od.entries.map(a => ({ ts: a.ts, crew: a.crew, type: "Salt", prop: a.prop_id, area: a.area, detail: amtWord(a.amt) + (a.note ? " · " + a.note : "") }));
   const clr = od.clear_log.map(c => ({ ts: c.ts, crew: c.crew, type: "Clearing", prop: c.prop_id, area: c.part, detail: (c.checked ? (c.note ? "Checked, not fully cleared: " + c.note : "Checked cleared") : "Unchecked") + (c.storm_name ? " · " + c.storm_name : "") }));
-  return [...salt, ...clr].sort((a, b) => a.ts.localeCompare(b.ts));
+  const nt = (od.notes || []).map(n => ({ ts: n.ts, crew: n.crew, type: "Shift note", prop: "", area: "", detail: n.note }));
+  return [...salt, ...clr, ...nt].sort((a, b) => a.ts.localeCompare(b.ts));
 }
 const fillWord = x => x.kind && x.kind.startsWith("left") ? `Left on truck · ${x.kind === "left_bulk" ? "sander" : "bags"}${x.note ? " · " + x.note : ""}` : x.kind && x.kind.startsWith("empty") ? `Emptied ${x.kind === "empty_bulk" ? "sander" : "bags"}${x.yard ? " · " + x.yard : ""}${x.note ? " · " + x.note : ""}` : x.kind === "bulk" ? `Sander${x.yard ? " · " + x.yard : ""}` : `Bags · ${x.bags || "?"}${x.yard ? " · " + x.yard : ""}`;
-const areaWord = r => r.area === "walks" ? "Walkways" : "Parking lots";
+const areaWord = r => r.area === "walks" ? "Walkways" : r.area === "" ? "" : "Parking lots";
 const clearWord = a => a === "drives" ? "Parking lots" : "Walkways";
 const propName = id => (PROPS[id] ? PROPS[id].addr : id);
 function rangeName(od) {
@@ -310,6 +313,7 @@ function viewReport(r) {
       ${rows ? `<div class="muted small">${byProp.length} propert${byProp.length === 1 ? "y" : "ies"} salted</div><div class="sumlist">${rows}</div>` : `<p class="muted" style="margin:0">No salting logged this shift.</p>`}
       ${r.storm ? (() => { const g = []; (r.clears || []).forEach(c => { let x = g.find(y => y.id === c.prop_id); if (!x) g.push(x = { id: c.prop_id, items: [] }); x.items.push(c); });
         return `<h3 style="margin:14px 0 6px">Clearing · ${esc(r.storm)}</h3>` + (g.length ? `<div class="sumlist">${g.map(x => `<div class="sumrow"><div style="font-weight:700">${esc(propName(x.id))}</div><div class="logged">${x.items.map(c => `<span class="entry${c.note ? " badchip" : ""}">${clearWord(c.part)} · ${c.note ? "not fully cleared: " + esc(c.note) : "cleared"}</span>`).join("")}</div></div>`).join("")}</div>` : `<p class="muted" style="margin:0">Nothing checked off.</p>`); })() : ""}
+      ${r.note ? `<h3 style="margin:14px 0 6px">Your notes</h3><p style="margin:0;white-space:pre-wrap">${esc(r.note)}</p>` : ""}
       ${(r.fills || []).length ? `<h3 style="margin:14px 0 6px">Salt fill-ups</h3><div class="logged">${r.fills.map(f => `<span class="entry">${esc(fillWord(f))}</span>`).join("")}</div>` : ""}
     </section>`;
 }
@@ -358,6 +362,8 @@ function viewLogs() {
     ${tableHTML(od.entries)}
     <section class="panel"><h2>Salt fill-ups</h2><div class="muted small">When drivers loaded their trucks, newest first.</div>
     ${od.fills.length ? `<div class="tbl-wrap"><table class="log" style="min-width:360px"><thead><tr><th>When</th><th>Driver</th><th>Filled with</th></tr></thead><tbody>${[...od.fills].reverse().map(x => `<tr><td class="t">${md(x.ts)} ${hm(x.ts)}</td><td><b>${esc(x.crew)}</b></td><td>${esc(fillWord(x))}</td></tr>`).join("")}</tbody></table></div>` : `<p class="muted" style="margin:0">No fill-ups logged yet.</p>`}</section>
+    <section class="panel"><h2>Shift notes</h2><div class="muted small">Notes drivers left when clocking out, newest first.</div>
+    ${(od.notes || []).length ? `<div class="shiftlist">${[...od.notes].reverse().map(n => `<div class="shiftrow"><div><b>${esc(n.crew)}</b> · ${md(n.ts)} ${hm(n.ts)}</div><div style="white-space:pre-wrap">${esc(n.note)}</div></div>`).join("")}</div>` : `<p class="muted" style="margin:0">No shift notes yet.</p>`}</section>
     <section class="panel"><h2>Log data</h2><div class="muted small">Every salt entry and clearing check-off with who did it, newest first.</div>
     ${rows.length ? `<div class="tbl-wrap"><table class="log" style="min-width:600px"><thead><tr><th>When</th><th>Driver</th><th>Type</th><th>Property</th><th>Area</th><th>Detail</th></tr></thead><tbody>${
       rows.slice(0, UI.allFeed ? 99999 : 15).map(r => `<tr><td class="t">${md(r.ts)} ${hm(r.ts)}</td><td><b>${esc(r.crew)}</b></td><td>${r.type}</td><td>${esc(propName(r.prop))}</td><td>${areaWord(r)}</td><td class="t">${esc(r.detail)}</td></tr>`).join("")}</tbody></table></div>
@@ -432,19 +438,19 @@ async function openCrewHistory(name) {
   let h; try { h = await rpc("history", { crew: name }, "crew_history"); } catch (e) { modal(`<h2>${esc(name)}</h2><p class="err">Couldn't load. Check your signal.</p><button class="btn ghost block" id="cancel">Close</button>`, () => {}); return; }
   const shifts = h.shifts || [];
   const total = shifts.filter(r => r.ended && Date.now() - new Date(r.started) < 7 * 864e5).reduce((t, r) => t + (new Date(r.ended) - new Date(r.started)), 0);
-  const row = r => `<div class="shiftrow"><div><b>${md(r.started)}</b> · in ${hm(r.started)} · ${r.ended ? "out " + hm(r.ended) : '<b style="color:var(--ok)">on now</b>'}</div><div class="muted small">${dur((r.ended ? new Date(r.ended) : Date.now()) - new Date(r.started))} worked · ${r.stops} stop${r.stops === 1 ? "" : "s"} salted</div></div>`;
+  const row = r => `<div class="shiftrow"><div><b>${md(r.started)}</b> · in ${hm(r.started)} · ${r.ended ? "out " + hm(r.ended) : '<b style="color:var(--ok)">on now</b>'}</div><div class="muted small">${dur((r.ended ? new Date(r.ended) : Date.now()) - new Date(r.started))} worked · ${r.stops} stop${r.stops === 1 ? "" : "s"} salted</div>${r.note ? `<div class="small" style="white-space:pre-wrap">Note: ${esc(r.note)}</div>` : ""}</div>`;
   modal(`<h2>${esc(name)}</h2><div class="muted small" style="margin-top:-8px">Time worked, last 7 days: <b>${dur(total)}</b></div>
     <h3 style="margin:4px 0 0">Clock in / out</h3>
     ${shifts.length ? `<div class="shiftlist">${shifts.map(row).join("")}</div>` : `<p class="muted" style="margin:0">No clock-ins yet.</p>`}
     <details><summary class="muted small">App sign-ins (${(h.sessions || []).length})</summary><div class="small" style="margin-top:6px">${(h.sessions || []).map(x => `${fmtWhen(x.signed_in)} to ${x.signed_out ? fmtWhen(x.signed_out) : "still signed in"}`).join("<br>")}</div></details>
     <button class="btn ghost block" id="cancel">Close</button>`, () => {});
 }
-function endShift() {
+function endShift(note) {
   if (!DATA.run) return;
   const mine = DATA.entries || [];
   UI.report = { time: dur(Date.now() - new Date(DATA.run.started)), started: DATA.run.started, ended: nowIso(), crew: DATA.run.crew, entries: mine.slice().sort((a, b) => a.ts.localeCompare(b.ts)),
     fills: (DATA.fills || []).filter(f => new Date(f.ts) >= new Date(DATA.run.started) - 1000).sort((a, b) => a.ts.localeCompare(b.ts)),
-    storm: DATA.storm ? DATA.storm.name : null,
+    storm: DATA.storm ? DATA.storm.name : null, note: note || "",
     clears: DATA.storm ? (DATA.clears || []).filter(c => c.crew.trim().toLowerCase() === AUTH.name.trim().toLowerCase()).sort((a, b) => a.ts.localeCompare(b.ts)) : [] };
   send("finish_run", { id: DATA.run.id, ts: nowIso() }); UI.here = null; LS.del("here"); UI.tab = "home"; LS.set("tab", "home"); render(); window.scrollTo(0, 0);
 }
@@ -459,22 +465,21 @@ function openEndShift() {
   const stepUsed = () => modal(`<h2>End your shift</h2><p style="margin:0;font-weight:600">Was all salt on the truck used during your shift?</p>
     <div class="clgrid"><button class="btn yes huge" id="used-yes">Yes</button><button class="btn bad huge" id="used-no">No</button></div>
     <button class="btn ghost block" id="cancel">Cancel</button>`, x => {
-      if (x.id === "used-yes") { document.getElementById("modal").innerHTML = ""; endShift(); }
+      if (x.id === "used-yes") stepNotes();
       else if (x.id === "used-no") step1(); });
   const stepLeft = () => modal(`<h2>Salt left on the truck</h2><p style="margin:0;font-weight:600">Is it in the sander or bags?</p>
     <div class="clgrid"><button class="btn salt huge" id="left-sander">Sander</button><button class="btn walk huge" id="left-bags">Bags</button></div>
     <button class="btn ghost block" id="cancel">Cancel</button>`, x => {
-      if (x.id === "left-sander") modal(`<h2>Empty the sander first</h2><p style="margin:0;font-weight:600">Salt must be emptied out in the bin before you can clock out.</p>
-        <button class="btn salt block" id="cancel">OK</button>`, () => {});
+      if (x.id === "left-sander") modal(`<div class="redbox">PLEASE EMPTY SANDER BEFORE CLOCK OUT</div>
+        <button class="btn ghost block" id="cancel">OK</button>`, () => {});
       else if (x.id === "left-bags") stepBags(); });
   const stepBags = () => { modal(`<h2>Bags left on the truck</h2>
     <div class="notewrap"><label class="f" for="left-note">About how many bags are on the truck?<textarea id="left-note" rows="2" placeholder="e.g. 5 bags"></textarea></label>
-    <button class="btn bad block huge" id="left-done">End shift</button></div>
+    <button class="btn bad block huge" id="left-done">Next</button></div>
     <button class="btn ghost block" id="cancel">Cancel</button>`, x => {
       if (x.id !== "left-done") return;
       const n = document.getElementById("left-note").value.trim(); if (!n) { toast("Write about how many bags are on the truck"); return; }
-      document.getElementById("modal").innerHTML = "";
-      send("empty", { id: uuid(), kind: "left_bags", yard: null, note: n, run_id: DATA.run.id, ts: nowIso() }); endShift(); });
+      stepNotes(() => send("empty", { id: uuid(), kind: "left_bags", yard: null, note: n, run_id: DATA.run.id, ts: nowIso() })); });
     document.getElementById("left-note").focus(); };
   const step2 = () => modal(`<h2>Salt emptied out</h2><div class="muted small" style="margin-top:-8px">At what Storage Facility was it emptied?</div>
     <div class="locs small-locs">${YARDS_BAGS.map(l => `<button class="btn walk" data-emloc="${l}">${l}</button>`).join("")}</div>
@@ -484,13 +489,23 @@ function openEndShift() {
     <button class="btn ghost block" id="cancel">Cancel</button>`, x => { const k = x.closest("[data-emkind]"); if (k) { E.kind = k.dataset.emkind; step4(); } });
   const step4 = () => { modal(`<h2>Salt emptied out</h2><div class="muted small" style="margin-top:-8px">${esc(E.yard)} · ${E.kind === "empty_bulk" ? "Sander" : "Bags"}</div>
     <div class="notewrap"><label class="f" for="em-note">About how much?<textarea id="em-note" rows="3" placeholder="e.g. half a sander, about 10 bags"></textarea></label>
-    <button class="btn bad block huge" id="em-done">End shift</button></div>
+    <button class="btn bad block huge" id="em-done">Next</button></div>
     <button class="btn ghost block" id="cancel">Cancel</button>`, x => {
       if (x.id !== "em-done") return;
       const n = document.getElementById("em-note").value.trim(); if (!n) { toast("Write about how much was emptied"); return; }
-      document.getElementById("modal").innerHTML = "";
-      send("empty", { id: uuid(), kind: E.kind, yard: E.yard, note: n, run_id: DATA.run.id, ts: nowIso() }); endShift(); });
+      const k = E.kind, y = E.yard; stepNotes(() => send("empty", { id: uuid(), kind: k, yard: y, note: n, run_id: DATA.run.id, ts: nowIso() })); });
     document.getElementById("em-note").focus(); };
+  const stepNotes = pre => { modal(`<h2>Any notes before you clock out?</h2><div class="muted small" style="margin-top:-8px">Broken shovels, broken snowblower, damage, anything Tyler should know. Leave blank if nothing.</div>
+    <div class="notewrap"><label class="f" for="shift-note">Notes<textarea id="shift-note" rows="4" placeholder="e.g. shovel handle broke, snowblower won't start"></textarea></label>
+    <button class="btn bad block huge" id="shift-done">Clock out</button></div>
+    <button class="btn ghost block" id="cancel">Cancel</button>`, x => {
+      if (x.id !== "shift-done") return;
+      const n = document.getElementById("shift-note").value.trim();
+      document.getElementById("modal").innerHTML = "";
+      if (pre) pre();
+      if (n) send("shift_note", { id: DATA.run.id, note: n });
+      endShift(n); });
+    document.getElementById("shift-note").focus(); };
   stepUsed();
 }
 function openClearCheck(pid, part) {

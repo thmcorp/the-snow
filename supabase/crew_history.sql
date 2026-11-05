@@ -14,7 +14,7 @@ begin
   return jsonb_build_object(
     'shifts', (select coalesce(jsonb_agg(jsonb_build_object('id', r.id, 'started', r.started, 'ended', r.ended,
                   'stops', (select count(distinct e.prop_id) from salt_entries e where e.run_id = r.id),
-                  'entries', (select count(*) from salt_entries e where e.run_id = r.id)) order by r.started desc), '[]')
+                  'entries', (select count(*) from salt_entries e where e.run_id = r.id), 'note', r.note) order by r.started desc), '[]')
                from (select * from runs where lower(trim(crew)) = v_crew order by started desc limit 100) r),
     'sessions', (select coalesce(jsonb_agg(jsonb_build_object('signed_in', x.signed_in, 'signed_out', x.signed_out, 'last_seen', x.last_seen) order by x.signed_in desc), '[]')
                from (select * from sessions where lower(trim(name)) = v_crew order by signed_in desc limit 50) x)
