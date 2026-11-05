@@ -461,7 +461,7 @@ function openEndShift() {
     <button class="btn ghost block" id="cancel">Cancel</button>`, x => {
       if (x.id === "em-no") stepLeft();
       else if (x.id === "em-yes") step2(); });
-  const stepUsed = () => modal(`<h2>End your shift</h2><p style="margin:0;font-weight:600">Was all salt on the truck used during your shift?</p>
+  const stepUsed = () => modal(`<h2>Was all salt in the truck used during shift?</h2><p class="muted" style="margin:-6px 0 0;font-weight:600">Must answer before clock out</p>
     <div class="clgrid"><button class="btn yes huge" id="used-yes">Yes</button><button class="btn bad huge" id="used-no">No</button></div>
     <button class="btn ghost block" id="cancel">Cancel</button>`, x => {
       if (x.id === "used-yes") stepNotes();
