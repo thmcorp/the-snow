@@ -132,5 +132,12 @@ details.manual summary,details summary{cursor:pointer;font-weight:600;padding:6p
 .banner{position:sticky;top:calc(env(safe-area-inset-top,0px) + 52px);z-index:4;background:var(--warn-bg);color:var(--ink);font-weight:600;font-size:14px;text-align:center;padding:8px 16px;border-bottom:1px solid var(--line)}
 .err{color:#b3261e;font-weight:600}
 .gps-off{color:var(--muted)}
-.cnote,.ck small.cnote{display:block;color:#b4540a;font-weight:600;white-space:normal}
 textarea{resize:vertical}
+.clgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.clgrid .btn{min-height:76px;white-space:normal;line-height:1.15}
+.btn.bad{background:#c62828;color:#fff;border-color:#c62828}
+.ck.bad{border-color:#c62828;background:#fdecea}
+.ck.bad input{accent-color:#c62828}
+.ck.bad small{color:#c62828;white-space:normal}
+.clear.bad{background:#fdecea;border-color:#c62828}
+td.badcell{color:#c62828;background:#fdecea;font-weight:600}

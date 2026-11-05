@@ -275,7 +275,7 @@ function pastStorms() {
   return `<section class="panel"><h2>Past storms</h2>${list.length ? list.map(st => {
     const cm = {}; (st.clears || []).forEach(c => { (cm[c.prop_id] = cm[c.prop_id] || {})[c.part] = c; });
     const ok = p => parts(p).every(a => (cm[p.id] || {})[a]); const n = all.filter(ok).length;
-    const cell = (p, a) => { if (a === "walks" && !p.walks) return `<td class="nowalk"></td>`; const c = (cm[p.id] || {})[a]; return c ? `<td class="t">✓ ${md(c.ts)} ${hm(c.ts)} · ${esc(c.crew)}${c.note ? `<div class="cnote">⚠ ${esc(c.note)}</div>` : ""}</td>` : `<td class="t muted" style="font-weight:600">Not checked</td>`; };
+    const cell = (p, a) => { if (a === "walks" && !p.walks) return `<td class="nowalk"></td>`; const c = (cm[p.id] || {})[a]; return c ? `<td class="t${c.note ? " badcell" : ""}">${c.note ? "✗" : "✓"} ${md(c.ts)} ${hm(c.ts)} · ${esc(c.crew)}${c.note ? ` · ${esc(c.note)}` : ""}</td>` : `<td class="t muted" style="font-weight:600">Not checked</td>`; };
     return `<details class="storm"><summary><b>${esc(st.name)}</b><span class="muted small">${fmtWhen(st.started)} to ${fmtWhen(st.ended)} · ${n}/${all.length} fully cleared</span></summary>
       <div class="tbl-wrap"><table class="log"><thead><tr><th>Property</th><th>Parking lots</th><th>Walkways</th></tr></thead><tbody>${ROUTES.map(r => `<tr class="rh"><td colspan="3">${esc(r.name)}</td></tr>` + r.props.map(p => `<tr><td>${esc(p.addr)}</td>${cell(p, "drives")}${cell(p, "walks")}</tr>`).join("")).join("")}</tbody></table></div></details>`;
   }).join("") : `<p class="muted" style="margin:0">When you end a storm, its checklist is saved here.</p>`}</section>`;
@@ -290,11 +290,11 @@ function viewClear() {
   const cm = {}; (DATA.clears || []).forEach(c => { (cm[c.prop_id] = cm[c.prop_id] || {})[c.part] = c; });
   const all = allProps(); const parts = p => p.walks ? ["drives", "walks"] : ["drives"];
   const isDone = p => parts(p).every(a => (cm[p.id] || {})[a]); const done = all.filter(isDone).length;
-  const box = (p, a) => { const c = (cm[p.id] || {})[a]; return `<label class="ck${c ? " on" : ""}" for="clr-${p.id}-${a}"><input type="checkbox" id="clr-${p.id}-${a}" data-clear="${p.id}" data-part="${a}" ${c ? "checked" : ""}><span><b>${clearWord(a)}</b>${c ? `<small>${hm(c.ts)} · ${esc(c.crew)}</small>${c.note ? `<small class="cnote">⚠ ${esc(c.note)}</small>` : ""}` : ""}</span></label>`; };
+  const box = (p, a) => { const c = (cm[p.id] || {})[a]; return `<label class="ck${c ? " on" : ""}${c && c.note ? " bad" : ""}" for="clr-${p.id}-${a}"><input type="checkbox" id="clr-${p.id}-${a}" data-clear="${p.id}" data-part="${a}" ${c ? "checked" : ""}><span><b>${clearWord(a)}</b>${c ? `<small>${hm(c.ts)} · ${esc(c.crew)}${c.note ? ` · ${esc(c.note)}` : ""}</small>` : ""}</span></label>`; };
   return `<section class="panel"><div class="runbar"><div><h2>${esc(DATA.storm.name)}</h2><div class="muted small">${done} of ${all.length} properties fully cleared · updates live</div></div>${owner ? `<button class="btn ghost" id="storm-end">End storm</button>` : ""}</div>
     <div class="progress"><i style="width:${all.length ? Math.round(done / all.length * 100) : 0}%"></i></div></section>
     ${ROUTES.map(r => `<h3 class="route-h">${esc(r.name)} · ${r.props.filter(isDone).length}/${r.props.length}</h3>` + r.props.map(p =>
-      `<div class="clear${isDone(p) ? " done" : ""}"><div style="flex:1;min-width:0"><div style="font-weight:700">${esc(p.addr)}</div>${p.client ? `<div class="muted small">${esc(p.client)}</div>` : ""}
+      `<div class="clear${isDone(p) ? " done" : ""}${parts(p).some(a => ((cm[p.id] || {})[a] || {}).note) ? " bad" : ""}"><div style="flex:1;min-width:0"><div style="font-weight:700">${esc(p.addr)}</div>${p.client ? `<div class="muted small">${esc(p.client)}</div>` : ""}
         <div class="cks">${parts(p).map(a => box(p, a)).join("")}</div></div></div>`).join("")).join("")}${pastStorms()}`;
 }
 function viewLogs() {
@@ -382,8 +382,7 @@ function openClearCheck(pid, part) {
   const ask = part === "drives" ? "Make sure the whole parking lot is clear." : "Make sure all doors, walks, and the dumpster area are fully cleared.";
   modal(`<div class="muted small" style="text-transform:uppercase;letter-spacing:.08em;font-weight:700">${clearWord(part)}</div><h2 style="margin-top:-8px">Fully cleared?</h2><div class="muted small" style="margin-top:-8px">${esc(p.addr)}</div>
     <p style="margin:0;font-weight:600">${ask}</p>
-    <button class="btn salt block huge" id="cl-yes">Yes, fully cleared</button>
-    <button class="btn walk block" id="cl-no">Couldn't fully clear</button>
+    <div class="clgrid"><button class="btn salt huge" id="cl-yes">Yes, fully cleared</button><button class="btn bad huge" id="cl-no">Couldn't fully clear</button></div>
     <div id="cl-note-wrap" hidden><label class="f" for="cl-note">What couldn't be cleared?<textarea id="cl-note" rows="3" placeholder="e.g. cars parked in back row, dumpster blocked"></textarea></label>
       <button class="btn salt block" id="cl-save">Check off with note</button></div>
     <button class="btn ghost block" id="cancel">Cancel</button>`, (x, close) => {
