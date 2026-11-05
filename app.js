@@ -127,6 +127,7 @@ async function refresh() {
     if (AUTH.role === "owner" && UI.tab === "logs") await loadOwnerData();
   } catch (e) {
     if (e.code === "bad_pin") { signOutLocal("Your PIN changed. Sign in again."); return; }
+    if (e.code === "signed_out_by_owner") { signOutLocal("You were clocked out and signed out by the owner."); return; }
     setOnline(false);
   }
   buildRoutes();
@@ -455,7 +456,7 @@ function viewCrew() {
     return `<div class="runitem" data-crew="${esc(x.name)}" role="button" tabindex="0"><div style="min-width:0"><b>${esc(x.name)}</b>${x.role === "owner" ? ' <span class="muted small">owner</span>' : ""}
       <div class="muted small">Signed in ${fmtWhen(x.signed_in)}${x.signed_out ? ` · signed out ${fmtWhen(x.signed_out)}` : ` · last seen ${fmtWhen(x.last_seen)}`}</div>
       ${run && isOn ? `<div class="small" style="color:var(--ok);font-weight:600">On the clock · ${run.stops} stop${run.stops === 1 ? "" : "s"}${here ? ` · at ${esc(here)}` : ""}</div>` : ""}</div>
-      </div><span class="chev">${isOn ? '<span class="dot"></span>' : ""}›</span></div>`; };
+      <span class="chev">${isOn ? '<span class="dot"></span>' : ""}›</span></div>`; };
   const located = allProps().filter(p => p.lat != null).length;
   return `<section class="panel"><h2>Signed in now</h2><div class="muted small">${on.length} ${on.length === 1 ? "person" : "people"} signed in</div><div class="runs">${on.map(row).join("") || '<p class="muted">Nobody is signed in.</p>'}</div></section>
     <section class="panel"><h2>Signed out</h2><div class="runs">${off.map(row).join("") || '<p class="muted" style="margin:0">Nobody yet.</p>'}</div></section>
@@ -484,9 +485,8 @@ function render() {
   tabs.hidden = false;
   who.innerHTML = `<span class="small"><b>${esc(AUTH.name)}</b>${AUTH.role === "owner" ? " · owner" : ""}</span><button class="linkbtn" id="logout">Sign out</button>`;
   const owner = AUTH.role === "owner"; if (!owner && (UI.tab === "logs" || UI.tab === "crew")) UI.tab = "home";
-  if (owner && UI.tab === "mine") UI.tab = "home";
-  document.getElementById("tab-logs").hidden = !owner; document.getElementById("tab-crew").hidden = !owner; document.getElementById("tab-mine").hidden = owner;
-  document.querySelector(".tabs .wrap").style.gridTemplateColumns = owner ? "repeat(5,1fr)" : "repeat(4,1fr)";
+  document.getElementById("tab-logs").hidden = !owner; document.getElementById("tab-crew").hidden = !owner; document.getElementById("tab-mine").hidden = false;
+  document.querySelector(".tabs .wrap").style.gridTemplateColumns = owner ? "repeat(6,1fr)" : "repeat(4,1fr)"; tabs.classList.toggle("six", owner);
   app.innerHTML = UI.tab === "home" ? viewStart() : UI.tab === "clear" ? viewClear() : UI.tab === "logs" ? viewLogs() : UI.tab === "crew" ? viewCrew() : UI.tab === "mine" ? viewMine() : viewRun();
   document.querySelectorAll(".tabs button").forEach(b => b.setAttribute("aria-selected", b.dataset.tab === UI.tab));
   setOnline(UI.online);
@@ -540,6 +540,11 @@ async function openShiftLog(name, id, mine, backTo) {
   if (!h || !h.run) { modal(`<h2>${mine ? "Shift log" : esc(name)}</h2><p class="err">Couldn't load this shift. Check your signal.</p>${back}`, onB); return; }
   show();
 }
+function kickCrew(name) {
+  confirmBox(`Clock out & sign out ${name}?`, `Ends their shift now and signs them out of the app on their phone. Use this if they forgot to clock out.`, "Clock out & sign out", async () => {
+    try { const r = await rpc("sign_out", { crew: name }, "crew_admin"); toast(`${name} signed out${r && r.runs_ended ? " and clocked out" : ""}`); await refresh(); render(); }
+    catch (e) { toast("Couldn't sign them out. Check your signal."); } });
+}
 async function openCrewHistory(name) {
   modal(`<h2>${esc(name)}</h2><p class="muted" style="margin:0">Loading…</p><button class="btn ghost block" id="cancel">Close</button>`, () => {});
   let h; try { h = await rpc("history", { crew: name }, "crew_history"); } catch (e) { modal(`<h2>${esc(name)}</h2><p class="err">Couldn't load. Check your signal.</p><button class="btn ghost block" id="cancel">Close</button>`, () => {}); return; }
@@ -550,7 +555,8 @@ async function openCrewHistory(name) {
     <h3 style="margin:4px 0 0">Clock in / out</h3>
     ${shifts.length ? `<div class="shiftlist">${shifts.map(row).join("")}</div>` : `<p class="muted" style="margin:0">No clock-ins yet.</p>`}
     <details><summary class="muted small">App sign-ins (${(h.sessions || []).length})</summary><div class="small" style="margin-top:6px">${(h.sessions || []).map(x => `${fmtWhen(x.signed_in)} to ${x.signed_out ? fmtWhen(x.signed_out) : "still signed in"}`).join("<br>")}</div></details>
-    <button class="btn ghost block" id="cancel">Close</button>`, t => { const r = t.closest("[data-shift]"); if (r) openShiftLog(name, r.dataset.shift); });
+    ${(DATA.sessions || []).some(x => x.name.trim().toLowerCase() === name.trim().toLowerCase() && !x.signed_out) || shifts.some(r => !r.ended) ? `<button class="btn bad block" id="kick">Clock out &amp; sign out ${esc(name)}</button>` : ""}
+    <button class="btn ghost block" id="cancel">Close</button>`, t => { if (t.id === "kick") { kickCrew(name); return; } const r = t.closest("[data-shift]"); if (r) openShiftLog(name, r.dataset.shift); });
 }
 function endShift(note) {
   if (!DATA.run) return;
@@ -737,7 +743,7 @@ async function signIn() {
     toast(e.code === "bad_pin" ? "That PIN isn't right." : e.code === "network" ? "No signal. Try again when you have service." : e.code === "config" ? "The app isn't connected to its database yet." : "Couldn't sign in (" + e.code + ").");
   }
 }
-function signOutLocal(msg) { AUTH = null; DATA = null; OUTBOX = []; LS.del("auth"); LS.del("data"); LS.set("outbox", []); LS.del("here"); UI.here = null; UI.ownerData = null; UI.mine = null; UI.myFrom = null; render(); if (msg) toast(msg); }
+function signOutLocal(msg) { AUTH = null; DATA = null; OUTBOX = []; LS.del("auth"); LS.del("data"); LS.set("outbox", []); LS.del("here"); UI.here = null; UI.ownerData = null; UI.mine = null; UI.myFrom = null; render(); setOnline(UI.online); if (msg) toast(msg); }
 async function geocodeMissing(btn) {
   const missing = allProps().filter(p => p.lat == null); if (!missing.length) { toast("Every property already has a location."); return; }
   btn.disabled = true; let found = 0;
