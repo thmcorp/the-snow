@@ -87,7 +87,7 @@ function applyLocal(item) {
       { const old = (DATA.clears || []).find(c => c.prop_id === d.prop_id && c.part === d.part);
       DATA.clears = (DATA.clears || []).filter(c => !(c.prop_id === d.prop_id && c.part === d.part));
       if (d.checked) { const x = { storm_id: d.storm_id, prop_id: d.prop_id, part: d.part, crew: AUTH.name, ts: d.ts, note: d.note || "" };
-        if (!x.note && old && (old.note || old.was_note)) { x.was_note = old.note || old.was_note; x.was_ts = old.note ? old.ts : old.was_ts; }
+        if (!x.note && old && (old.note || old.was_note)) { x.was_note = old.note || old.was_note; x.was_ts = old.note ? old.ts : old.was_ts; x.was_crew = old.note ? old.crew : old.was_crew; }
         DATA.clears.push(x); } }
       break;
     case "storm_end": DATA.storm = null; DATA.clears = []; break;
@@ -177,7 +177,7 @@ function tableHTML(entries) {
 }
 function dataRows(od) {
   const salt = od.entries.map(a => ({ ts: a.ts, crew: a.crew, type: "Salt", prop: a.prop_id, area: a.area, detail: amtWord(a.amt) + (a.note ? " · " + a.note : "") }));
-  const clr = od.clear_log.map(c => ({ ts: c.ts, crew: c.crew, type: "Clearing", prop: c.prop_id, area: c.part, detail: (c.checked ? (c.note ? "Checked, not fully cleared: " + c.note : c.was_note ? `RETURN TRIP: fully cleared (not cleared at ${hm(c.was_ts)}: ${c.was_note})` : "Checked cleared") : "Unchecked") + (c.storm_name ? " · " + c.storm_name : "") }));
+  const clr = od.clear_log.map(c => ({ ts: c.ts, crew: c.crew, type: "Clearing", prop: c.prop_id, area: c.part, detail: (c.checked ? (c.note ? "Checked, not fully cleared: " + c.note : c.was_note ? `RETURN TRIP: fully cleared (not fully cleared at ${hm(c.was_ts)}${c.was_crew ? " by " + c.was_crew : ""}: ${c.was_note})` : "Checked cleared") : "Unchecked") + (c.storm_name ? " · " + c.storm_name : "") }));
   const nt = (od.notes || []).map(n => ({ ts: n.ts, crew: n.crew, type: "Shift note", prop: "", area: "", detail: n.note }));
   return [...salt, ...clr, ...nt].sort((a, b) => a.ts.localeCompare(b.ts));
 }
@@ -366,7 +366,7 @@ function pastStorms() {
   return `<section class="panel"><h2>Past storms</h2>${list.length ? list.map(st => {
     const cm = {}; (st.clears || []).forEach(c => { (cm[c.prop_id] = cm[c.prop_id] || {})[c.part] = c; });
     const ok = p => parts(p).every(a => (cm[p.id] || {})[a]); const n = all.filter(ok).length;
-    const cell = (p, a) => { if (a === "walks" && !p.walks) return `<td class="nowalk"></td>`; const c = (cm[p.id] || {})[a]; return c ? `<td class="t${c.note ? " badcell" : ""}">${c.note ? "✗" : "✓"} ${md(c.ts)} ${hm(c.ts)} · ${esc(c.crew)}${c.note ? ` · ${esc(c.note)}` : ""}${c.was_note ? `<div class="rtrip">✗ RETURN TRIP · not cleared ${hm(c.was_ts)}: ${esc(c.was_note)}</div>` : ""}</td>` : `<td class="t muted" style="font-weight:600">Not checked</td>`; };
+    const cell = (p, a) => { if (a === "walks" && !p.walks) return `<td class="nowalk"></td>`; const c = (cm[p.id] || {})[a]; return c ? `<td class="t${c.note ? " badcell" : ""}">${c.note ? "✗" : "✓"} ${md(c.ts)} ${hm(c.ts)} · ${esc(c.crew)}${c.note ? ` · ${esc(c.note)}` : ""}${c.was_note ? `<div class="rtrip">✗ Not fully cleared ${md(c.was_ts)} ${hm(c.was_ts)}${c.was_crew ? " · " + esc(c.was_crew) : ""} · ${esc(c.was_note)} · RETURN TRIP</div>` : ""}</td>` : `<td class="t muted" style="font-weight:600">Not checked</td>`; };
     return `<details class="storm"><summary><b>${esc(st.name)}</b><span class="muted small">${fmtWhen(st.started)} to ${fmtWhen(st.ended)} · ${n}/${all.length} fully cleared</span></summary>
       <div class="tbl-wrap"><table class="log"><thead><tr><th>Property</th><th>Parking Lot(s)</th><th>Walkways</th></tr></thead><tbody>${ROUTES.map(r => `<tr class="rh"><td colspan="3">${esc(r.name)}</td></tr>` + r.props.map(p => `<tr><td>${esc(p.addr)}</td>${saltOnly(p) ? `<td colspan="2" class="muted small">Salt only, no clearing</td>` : cell(p, "drives") + cell(p, "walks")}</tr>`).join("")).join("")}</tbody></table></div></details>`;
   }).join("") : `<p class="muted" style="margin:0">When you end a storm, its checklist is saved here.</p>`}</section>`;
@@ -383,7 +383,7 @@ function viewClear() {
   const isDone = p => parts(p).every(a => (cm[p.id] || {})[a]); const done = all.filter(isDone).length;
   const box = (p, a) => { const c = (cm[p.id] || {})[a];
     if (c && c.note) return `<button class="ck on bad" data-clearfix="${p.id}" data-part="${a}"><span class="xmark">✗</span><span><b>${clearWord(a)}</b><small>Not fully cleared · ${hm(c.ts)} · ${esc(c.crew)} · ${esc(c.note)}</small></span></button>`;
-    return `<label class="ck${c ? " on" : ""}" for="clr-${p.id}-${a}"><input type="checkbox" id="clr-${p.id}-${a}" data-clear="${p.id}" data-part="${a}" ${c ? "checked" : ""}><span><b>${clearWord(a)}</b>${c ? `<small>${hm(c.ts)} · ${esc(c.crew)}</small>${c.was_note ? `<small class="rtrip">✗ Return trip · not cleared at ${hm(c.was_ts)}: ${esc(c.was_note)}</small>` : ""}` : ""}</span></label>`; };
+    return `<label class="ck${c ? " on" : ""}" for="clr-${p.id}-${a}"><input type="checkbox" id="clr-${p.id}-${a}" data-clear="${p.id}" data-part="${a}" ${c ? "checked" : ""}><span><b>${clearWord(a)}</b>${c ? (c.was_note ? `<small class="rtrip">✗ Not fully cleared · ${hm(c.was_ts)}${c.was_crew ? " · " + esc(c.was_crew) : ""} · ${esc(c.was_note)}</small><small>✓ Fully cleared · ${hm(c.ts)} · ${esc(c.crew)}</small><small class="rtrip">Return trip</small>` : `<small>${hm(c.ts)} · ${esc(c.crew)}</small>`) : ""}</span></label>`; };
   return `${clockBar()}<section class="panel"><div class="runbar"><div><h2>${esc(DATA.storm.name)}</h2><div class="muted small">${done} of ${all.length} properties fully cleared · updates live</div></div>${owner ? `<button class="btn ghost" id="storm-end">End storm</button>` : ""}</div>
     <div class="progress"><i style="width:${all.length ? Math.round(done / all.length * 100) : 0}%"></i></div></section>
     ${ROUTES.map(r => `<h3 class="route-h">${esc(r.name)} · ${r.props.filter(p => !saltOnly(p) && isDone(p)).length}/${r.props.filter(p => !saltOnly(p)).length}</h3>` + r.props.map(p => saltOnly(p)
