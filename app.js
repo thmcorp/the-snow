@@ -172,7 +172,7 @@ function dataRows(od) {
   const clr = od.clear_log.map(c => ({ ts: c.ts, crew: c.crew, type: "Clearing", prop: c.prop_id, area: c.part, detail: (c.checked ? (c.note ? "Checked, not fully cleared: " + c.note : "Checked cleared") : "Unchecked") + (c.storm_name ? " · " + c.storm_name : "") }));
   return [...salt, ...clr].sort((a, b) => a.ts.localeCompare(b.ts));
 }
-const fillWord = x => x.kind === "bulk" ? `Bulk${x.yard ? " · " + x.yard : ""}` : `Bags · ${x.bags || "?"}${x.yard ? " · " + x.yard : ""}`;
+const fillWord = x => x.kind === "bulk" ? `Sander${x.yard ? " · " + x.yard : ""}` : `Bags · ${x.bags || "?"}${x.yard ? " · " + x.yard : ""}`;
 const areaWord = r => r.area === "walks" ? "Walkways" : "Parking lots";
 const clearWord = a => a === "drives" ? "Parking lots" : "Walkways";
 const propName = id => (PROPS[id] ? PROPS[id].addr : id);
@@ -188,7 +188,7 @@ function exportXlsx(od) {
   sheetRows(od.entries).forEach(r => { if (r.heading) { if (aoa.length > 2) aoa.push([]); aoa.push([r.heading]); aoa.push([]); } else aoa.push([r.prop, "", r.drives, r.nowalk ? "" : r.walks]); });
   const ws = XLSX.utils.aoa_to_sheet(aoa); ws["!cols"] = [{ wch: 60 }, { wch: 2 }, { wch: 70 }, { wch: 55 }];
   const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Main log");
-  const fl = [["Date", "Time", "Driver", "Filled with", "Bags", "Yard"], ...od.fills.map(x => [md(x.ts), hm(x.ts), x.crew, x.kind === "bulk" ? "Bulk" : "Bags", x.bags || "", x.yard || ""])];
+  const fl = [["Date", "Time", "Driver", "Filled with", "Bags", "Yard"], ...od.fills.map(x => [md(x.ts), hm(x.ts), x.crew, x.kind === "bulk" ? "Sander" : "Bags", x.bags || "", x.yard || ""])];
   const ws3 = XLSX.utils.aoa_to_sheet(fl); ws3["!cols"] = [{ wch: 7 }, { wch: 6 }, { wch: 14 }, { wch: 11 }, { wch: 6 }, { wch: 12 }]; XLSX.utils.book_append_sheet(wb, ws3, "Salt fill-ups");
   const det = [["Date", "Time", "Driver", "Type", "Property", "Area", "Detail"], ...dataRows(od).map(r => [md(r.ts), hm(r.ts), r.crew, r.type, PROPS[r.prop] ? PROPS[r.prop].label : r.prop, areaWord(r), r.detail])];
   const ws2 = XLSX.utils.aoa_to_sheet(det); ws2["!cols"] = [{ wch: 7 }, { wch: 6 }, { wch: 14 }, { wch: 10 }, { wch: 60 }, { wch: 12 }, { wch: 30 }]; XLSX.utils.book_append_sheet(wb, ws2, "Log data");
@@ -229,9 +229,9 @@ function propSelect() {
 }
 function fillCard() {
   const mine = DATA.run ? (DATA.fills || []).filter(x => new Date(x.ts) >= new Date(DATA.run.started) - 1000).sort((a, b) => a.ts.localeCompare(b.ts)) : [];
-  return `<section class="arrive fillcard"><div class="gps">Salt fill-up</div>
+  return `<section class="arrive fillcard"><div class="gps fillhead">Salt fill-up</div>
     <div class="muted small">Tap when you load the truck.</div>
-    <div class="acts"><button class="btn salt huge" data-fill="bulk">Filled bulk</button><button class="btn walk huge" data-fill="bags">Filled bags</button></div>
+    <div class="acts"><button class="btn salt huge" data-fill="bulk">Sander</button><button class="btn walk huge" data-fill="bags">Bags</button></div>
     ${mine.length ? `<div class="done-line">✓ Logged</div><div class="logged">${mine.map(x => `<button class="entry" data-fillfix="${x.id}">${esc(fillWord(x))}</button>`).join("")}</div>` : ""}
   </section>`;
 }
@@ -489,7 +489,7 @@ function openEdit(e) {
 function logFill(kind, bags, yard) {
   if (!DATA.run) send("start_run", { id: uuid(), ts: nowIso() });
   send("fill", { id: uuid(), kind, bags: bags || null, yard, run_id: DATA.run ? DATA.run.id : null, ts: nowIso() });
-  toast(kind === "bulk" ? `Logged bulk · ${yard}` : `Logged ${bags} bags · ${yard}`);
+  toast(kind === "bulk" ? `Logged sander · ${yard}` : `Logged ${bags} bags · ${yard}`);
 }
 async function signIn() {
   const name = document.getElementById("login-name").value.trim(), pin = document.getElementById("login-pin").value.trim();
@@ -579,13 +579,13 @@ app.addEventListener("click", ev => {
   if (t.id === "storm-end") { confirmBox("End this storm?", "Its checklist is saved under Past storms, and a fresh one is ready for the next storm.", "End storm",
     () => rpc("storm_end", {}).then(() => { toast("Storm ended"); refresh(); }).catch(() => toast("Couldn't end the storm. Check your signal."))); return; }
   if (t.dataset.fill === "bulk") {
-    modal(`<h2>Filled bulk</h2><div class="muted small" style="margin-top:-8px">From which Storage Facility?</div>
+    modal(`<h2>Sander</h2><div class="muted small" style="margin-top:-8px">From which Storage Facility?</div>
       <div class="locs">${YARDS_BULK.map(l => `<button class="btn salt huge" data-loc="${l}">${l}</button>`).join("")}</div>
       <button class="btn ghost block" id="cancel">Cancel</button>`, (x, close) => { const l = x.closest("[data-loc]"); if (l) { close(); logFill("bulk", null, l.dataset.loc); } });
     return;
   }
   if (t.dataset.fill === "bags") {
-    modal(`<h2>Filled bags</h2>
+    modal(`<h2>Bags</h2>
       <label class="f" for="bag-count">1. How many bags?<select id="bag-count"><option value="">Select…</option>${Array.from({ length: 50 }, (_, i) => `<option value="${i + 1}">${i + 1}</option>`).join("")}</select></label>
       <div class="muted small" style="font-weight:600" id="yard-h">2. From which Storage Facility? <span id="yard-hint">(pick the number of bags first)</span></div>
       <div class="locs small-locs">${YARDS_BAGS.map(l => `<button class="btn walk" data-bagloc="${l}" disabled>${l}</button>`).join("")}</div>

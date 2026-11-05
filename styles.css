@@ -180,3 +180,4 @@ label.f.bigpick{font-size:18px;font-weight:700}
 .small-locs .btn{padding:12px 8px;font-size:16px}
 .small-locs .btn:disabled{opacity:.35;filter:grayscale(1);cursor:not-allowed;transform:none}
 #bag-count{font-size:20px;padding:14px;border:2px solid var(--salt)}
+.gps.fillhead{font-size:18px}
