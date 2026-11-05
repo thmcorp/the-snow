@@ -527,8 +527,9 @@ async function geocodeMissing(btn) {
 // ---------- events ----------
 document.getElementById("who-bar").addEventListener("click", ev => {
   if (ev.target.id !== "logout") return;
-  if (DATA && DATA.run) { UI.tab = "home"; LS.set("tab", "home"); UI.report = null; render(); window.scrollTo(0, 0); toast("Clock out first: tap End");
-    const e = document.getElementById("finish"); if (e) { e.classList.add("pulse"); setTimeout(() => e.classList.remove("pulse"), 2400); } return; }
+  if (DATA && DATA.run) { UI.tab = "home"; LS.set("tab", "home"); UI.report = null; render(); window.scrollTo(0, 0);
+    modal(`<h2>Clock out first</h2><p class="muted" style="margin:0">You're still on the clock. Tap End before signing out.</p><button class="btn salt block" id="cancel">OK</button>`, () => {});
+    const e = document.getElementById("finish"); if (e) { e.classList.add("pulse"); setTimeout(() => e.classList.remove("pulse"), 3200); } return; }
   confirmBox("Sign out?", "You'll need your name and PIN to sign back in.", "Sign out", async () => {
     try { await rpc("logout", { session: AUTH.session }); } catch (e) {}
     signOutLocal();
