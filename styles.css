@@ -181,3 +181,5 @@ label.f.bigpick{font-size:18px;font-weight:700}
 .small-locs .btn:disabled{opacity:.35;filter:grayscale(1);cursor:not-allowed;transform:none}
 #bag-count{font-size:20px;padding:14px;border:2px solid var(--salt)}
 .gps.fillhead{font-size:18px}
+.clockbar{flex-direction:row;align-items:center;justify-content:space-between}
+.clock-sm{font-family:var(--display);font-size:30px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}

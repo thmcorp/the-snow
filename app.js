@@ -80,7 +80,7 @@ function applyLocal(item) {
     case "salt": if (!DATA.entries.some(e => e.id === d.id)) DATA.entries.push({ ...d, crew: AUTH.name }); break;
     case "salt_edit": DATA.entries.forEach(e => { if (e.id === d.id) Object.assign(e, d); }); break;
     case "salt_delete": DATA.entries = DATA.entries.filter(e => e.id !== d.id); break;
-    case "fill": if (!DATA.fills.some(f => f.id === d.id)) DATA.fills.push({ ...d, crew: AUTH.name }); break;
+    case "fill": case "empty": if (!DATA.fills.some(f => f.id === d.id)) DATA.fills.push({ ...d, crew: AUTH.name }); break;
     case "fill_delete": DATA.fills = DATA.fills.filter(f => f.id !== d.id); break;
     case "clear":
       DATA.clears = (DATA.clears || []).filter(c => !(c.prop_id === d.prop_id && c.part === d.part));
@@ -100,7 +100,7 @@ async function flush() {
   try {
     while (OUTBOX.length) {
       const item = OUTBOX[0];
-      try { await rpc(item.action, item.data); setOnline(true); }
+      try { await rpc(item.action, item.data, item.action === "empty" ? "log_empty" : undefined); setOnline(true); }
       catch (e) {
         if (e.code === "network" || e.code === "config" || (e.status && e.status >= 500)) { setOnline(false); break; }
         if (e.code === "bad_pin") { signOutLocal("Your PIN changed. Sign in again."); break; }
@@ -172,7 +172,7 @@ function dataRows(od) {
   const clr = od.clear_log.map(c => ({ ts: c.ts, crew: c.crew, type: "Clearing", prop: c.prop_id, area: c.part, detail: (c.checked ? (c.note ? "Checked, not fully cleared: " + c.note : "Checked cleared") : "Unchecked") + (c.storm_name ? " · " + c.storm_name : "") }));
   return [...salt, ...clr].sort((a, b) => a.ts.localeCompare(b.ts));
 }
-const fillWord = x => x.kind === "bulk" ? `Sander${x.yard ? " · " + x.yard : ""}` : `Bags · ${x.bags || "?"}${x.yard ? " · " + x.yard : ""}`;
+const fillWord = x => x.kind && x.kind.startsWith("empty") ? `Emptied ${x.kind === "empty_bulk" ? "sander" : "bags"}${x.yard ? " · " + x.yard : ""}${x.note ? " · " + x.note : ""}` : x.kind === "bulk" ? `Sander${x.yard ? " · " + x.yard : ""}` : `Bags · ${x.bags || "?"}${x.yard ? " · " + x.yard : ""}`;
 const areaWord = r => r.area === "walks" ? "Walkways" : "Parking lots";
 const clearWord = a => a === "drives" ? "Parking lots" : "Walkways";
 const propName = id => (PROPS[id] ? PROPS[id].addr : id);
@@ -188,7 +188,7 @@ function exportXlsx(od) {
   sheetRows(od.entries).forEach(r => { if (r.heading) { if (aoa.length > 2) aoa.push([]); aoa.push([r.heading]); aoa.push([]); } else aoa.push([r.prop, "", r.drives, r.nowalk ? "" : r.walks]); });
   const ws = XLSX.utils.aoa_to_sheet(aoa); ws["!cols"] = [{ wch: 60 }, { wch: 2 }, { wch: 70 }, { wch: 55 }];
   const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Main log");
-  const fl = [["Date", "Time", "Driver", "Filled with", "Bags", "Yard"], ...od.fills.map(x => [md(x.ts), hm(x.ts), x.crew, x.kind === "bulk" ? "Sander" : "Bags", x.bags || "", x.yard || ""])];
+  const fl = [["Date", "Time", "Driver", "Filled with", "Bags", "Yard", "Notes"], ...od.fills.map(x => [md(x.ts), hm(x.ts), x.crew, x.kind === "bulk" ? "Sander" : x.kind === "bags" ? "Bags" : x.kind === "empty_bulk" ? "Emptied sander" : "Emptied bags", x.bags || "", x.yard || "", x.note || ""])];
   const ws3 = XLSX.utils.aoa_to_sheet(fl); ws3["!cols"] = [{ wch: 7 }, { wch: 6 }, { wch: 14 }, { wch: 11 }, { wch: 6 }, { wch: 12 }]; XLSX.utils.book_append_sheet(wb, ws3, "Salt fill-ups");
   const det = [["Date", "Time", "Driver", "Type", "Property", "Area", "Detail"], ...dataRows(od).map(r => [md(r.ts), hm(r.ts), r.crew, r.type, PROPS[r.prop] ? PROPS[r.prop].label : r.prop, areaWord(r), r.detail])];
   const ws2 = XLSX.utils.aoa_to_sheet(det); ws2["!cols"] = [{ wch: 7 }, { wch: 6 }, { wch: 14 }, { wch: 10 }, { wch: 60 }, { wch: 12 }, { wch: 30 }]; XLSX.utils.book_append_sheet(wb, ws2, "Log data");
@@ -235,6 +235,10 @@ function fillCard() {
     ${mine.length ? `<div class="done-line">✓ Logged</div><div class="logged">${mine.map(x => `<button class="entry" data-fillfix="${x.id}">${esc(fillWord(x))}</button>`).join("")}</div>` : ""}
   </section>`;
 }
+function clockBar() {
+  const run = DATA && DATA.run; if (!run) return "";
+  return `<section class="panel clockbar"><div><h2 style="margin:0">${esc(run.crew)}</h2><div class="muted small">Clocked in ${fmtWhen(run.started)}</div></div><div class="clock-sm elapsed" data-since="${esc(run.started)}">${dur(Date.now() - new Date(run.started))}</div></section>`;
+}
 function myLogCard() {
   const mine = (DATA.run && DATA.entries) || []; if (!mine.length) return "";
   const g = []; mine.slice().sort((a, b) => a.ts.localeCompare(b.ts)).forEach(e => { let x = g.find(y => y.id === e.prop_id); if (!x) g.push(x = { id: e.prop_id, items: [] }); x.items.push(e); });
@@ -263,7 +267,7 @@ function viewRun() {
       </div>
       ${owner ? `<button class="linkbtn" id="save-spot" style="align-self:flex-start">${here.lat != null ? "Update" : "Save"} GPS location for this property (stand on the lot)</button>` : ""}
     </section>` : `<section class="arrive waiting">${gpsLine(false)}</section>`;
-  return `${run ? `<section class="panel"><div class="runbar"><div><h2>${esc(run.crew)}</h2><div class="muted small">Clocked in ${fmtWhen(run.started)} · ${stops} of ${total} stop${total === 1 ? "" : "s"} salted</div></div></div></section>` : ""}
+  return `${clockBar()}
     ${arrival}
     <section class="panel">${propSelect()}</section>
     ${fillCard()}${myLogCard()}`;
@@ -275,7 +279,7 @@ function viewStart() {
   const mine = DATA.entries || [], stops = new Set(mine.map(a => a.prop_id)).size;
   const shift = run
     ? `<section class="arrive shift"><div class="gps"><span class="dot"></span>On the clock</div>
-        <div class="clock" id="elapsed" data-since="${esc(run.started)}">${dur(Date.now() - new Date(run.started))}</div>
+        <div class="clock elapsed" data-since="${esc(run.started)}">${dur(Date.now() - new Date(run.started))}</div>
         <div class="muted small">Clocked in ${fmtWhen(run.started)}</div>
         <button class="btn bad block huge" id="finish">End</button></section>`
     : `<section class="arrive waiting shift"><div class="gps"><span class="dot off"></span>Off the clock</div>
@@ -293,7 +297,7 @@ function viewStart() {
   const out = owner && (DATA.active_runs || []).length ? `<section class="panel"><h2>On the clock now</h2><div class="small">${DATA.active_runs.map(r => `<b>${esc(r.crew)}</b> · ${dur(Date.now() - new Date(r.started))} since ${hm(r.started)} · ${r.stops} stop${r.stops === 1 ? "" : "s"}`).join("<br>")}</div></section>` : "";
   return `<section class="panel"><h2 style="margin:0">Hi, ${esc(AUTH.name)}</h2></section>${shift}${tiles}${out}`;
 }
-setInterval(() => { const e = document.getElementById("elapsed"); if (e) e.textContent = dur(Date.now() - new Date(e.dataset.since)); }, 20000);
+setInterval(() => document.querySelectorAll(".elapsed").forEach(e => { e.textContent = dur(Date.now() - new Date(e.dataset.since)); }), 20000);
 function viewReport(r) {
   const byProp = []; (r.entries || []).forEach(e => { let g = byProp.find(x => x.id === e.prop_id); if (!g) byProp.push(g = { id: e.prop_id, items: [] }); g.items.push(e); });
   const rows = byProp.map(g => `<div class="sumrow"><div style="font-weight:700">${esc(propName(g.id))}</div><div class="logged">${g.items.map(e => `<span class="entry">${e.area === "drives" ? "Parking lots" : "Walks"} · ${amtWord(e.amt)}${e.note ? " (" + esc(e.note) + ")" : ""}</span>`).join("")}</div></div>`).join("");
@@ -323,16 +327,16 @@ function pastStorms() {
 }
 function viewClear() {
   const owner = AUTH.role === "owner";
-  if (!DATA.storm) return owner ? `<section class="panel"><h2>Storm clearing checklist</h2>
+  if (!DATA.storm) return clockBar() + (owner ? `<section class="panel"><h2>Storm clearing checklist</h2>
     <p class="muted" style="margin:0">Start a storm and every crew's phone gets the checklist. Crews check off parking lots and walkways at each property as they're cleared.</p>
     <label class="f" for="storm-name">Storm name<input type="text" id="storm-name" placeholder="e.g. Dec 12 storm"></label>
     <button class="btn block" id="storm-start">Start storm</button></section>` + pastStorms()
-    : `<section class="arrive waiting"><h2>No storm in progress</h2><div class="muted">The clearing checklist shows up here when a storm is started.</div></section>`;
+    : `<section class="arrive waiting"><h2>No storm in progress</h2><div class="muted">The clearing checklist shows up here when a storm is started.</div></section>`);
   const cm = {}; (DATA.clears || []).forEach(c => { (cm[c.prop_id] = cm[c.prop_id] || {})[c.part] = c; });
   const all = clearable(); const parts = p => p.walks ? ["drives", "walks"] : ["drives"];
   const isDone = p => parts(p).every(a => (cm[p.id] || {})[a]); const done = all.filter(isDone).length;
   const box = (p, a) => { const c = (cm[p.id] || {})[a]; return `<label class="ck${c ? " on" : ""}${c && c.note ? " bad" : ""}" for="clr-${p.id}-${a}"><input type="checkbox" id="clr-${p.id}-${a}" data-clear="${p.id}" data-part="${a}" ${c ? "checked" : ""}><span><b>${clearWord(a)}</b>${c ? `<small>${hm(c.ts)} · ${esc(c.crew)}${c.note ? ` · ${esc(c.note)}` : ""}</small>` : ""}</span></label>`; };
-  return `<section class="panel"><div class="runbar"><div><h2>${esc(DATA.storm.name)}</h2><div class="muted small">${done} of ${all.length} properties fully cleared · updates live</div></div>${owner ? `<button class="btn ghost" id="storm-end">End storm</button>` : ""}</div>
+  return `${clockBar()}<section class="panel"><div class="runbar"><div><h2>${esc(DATA.storm.name)}</h2><div class="muted small">${done} of ${all.length} properties fully cleared · updates live</div></div>${owner ? `<button class="btn ghost" id="storm-end">End storm</button>` : ""}</div>
     <div class="progress"><i style="width:${all.length ? Math.round(done / all.length * 100) : 0}%"></i></div></section>
     ${ROUTES.map(r => `<h3 class="route-h">${esc(r.name)} · ${r.props.filter(p => !saltOnly(p) && isDone(p)).length}/${r.props.filter(p => !saltOnly(p)).length}</h3>` + r.props.map(p => saltOnly(p)
       ? `<div class="clear saltonly"><div style="flex:1;min-width:0"><div style="font-weight:700">${esc(p.addr)}</div>${p.client ? `<div class="muted small">${esc(p.client)}</div>` : ""}<div class="small" style="font-weight:600;margin-top:6px">Salt only · no clearing</div></div></div>`
@@ -434,6 +438,40 @@ async function openCrewHistory(name) {
     ${shifts.length ? `<div class="shiftlist">${shifts.map(row).join("")}</div>` : `<p class="muted" style="margin:0">No clock-ins yet.</p>`}
     <details><summary class="muted small">App sign-ins (${(h.sessions || []).length})</summary><div class="small" style="margin-top:6px">${(h.sessions || []).map(x => `${fmtWhen(x.signed_in)} to ${x.signed_out ? fmtWhen(x.signed_out) : "still signed in"}`).join("<br>")}</div></details>
     <button class="btn ghost block" id="cancel">Close</button>`, () => {});
+}
+function endShift() {
+  if (!DATA.run) return;
+  const mine = DATA.entries || [];
+  UI.report = { time: dur(Date.now() - new Date(DATA.run.started)), started: DATA.run.started, ended: nowIso(), crew: DATA.run.crew, entries: mine.slice().sort((a, b) => a.ts.localeCompare(b.ts)),
+    fills: (DATA.fills || []).filter(f => new Date(f.ts) >= new Date(DATA.run.started) - 1000).sort((a, b) => a.ts.localeCompare(b.ts)),
+    storm: DATA.storm ? DATA.storm.name : null,
+    clears: DATA.storm ? (DATA.clears || []).filter(c => c.crew.trim().toLowerCase() === AUTH.name.trim().toLowerCase()).sort((a, b) => a.ts.localeCompare(b.ts)) : [] };
+  send("finish_run", { id: DATA.run.id, ts: nowIso() }); UI.here = null; LS.del("here"); UI.tab = "home"; LS.set("tab", "home"); render(); window.scrollTo(0, 0);
+}
+function openEndShift() {
+  if (!DATA.run) return;
+  const E = {};
+  const step1 = () => modal(`<h2>End your shift</h2><p style="margin:0;font-weight:600">Was all salt emptied out of the truck?</p>
+    <div class="clgrid"><button class="btn yes huge" id="em-yes">Yes</button><button class="btn bad huge" id="em-no">No</button></div>
+    <button class="btn ghost block" id="cancel">Cancel</button>`, x => {
+      if (x.id === "em-no") { document.getElementById("modal").innerHTML = ""; endShift(); }
+      else if (x.id === "em-yes") step2(); });
+  const step2 = () => modal(`<h2>Salt emptied out</h2><div class="muted small" style="margin-top:-8px">At what Storage Facility was it emptied?</div>
+    <div class="locs small-locs">${YARDS_BAGS.map(l => `<button class="btn walk" data-emloc="${l}">${l}</button>`).join("")}</div>
+    <button class="btn ghost block" id="cancel">Cancel</button>`, x => { const l = x.closest("[data-emloc]"); if (l) { E.yard = l.dataset.emloc; step3(); } });
+  const step3 = () => modal(`<h2>Salt emptied out</h2><div class="muted small" style="margin-top:-8px">${esc(E.yard)} · Was it sander or bags?</div>
+    <div class="clgrid"><button class="btn salt huge" data-emkind="empty_bulk">Sander</button><button class="btn walk huge" data-emkind="empty_bags">Bags</button></div>
+    <button class="btn ghost block" id="cancel">Cancel</button>`, x => { const k = x.closest("[data-emkind]"); if (k) { E.kind = k.dataset.emkind; step4(); } });
+  const step4 = () => { modal(`<h2>Salt emptied out</h2><div class="muted small" style="margin-top:-8px">${esc(E.yard)} · ${E.kind === "empty_bulk" ? "Sander" : "Bags"}</div>
+    <div class="notewrap"><label class="f" for="em-note">About how much?<textarea id="em-note" rows="3" placeholder="e.g. half a sander, about 10 bags"></textarea></label>
+    <button class="btn bad block huge" id="em-done">End shift</button></div>
+    <button class="btn ghost block" id="cancel">Cancel</button>`, x => {
+      if (x.id !== "em-done") return;
+      const n = document.getElementById("em-note").value.trim(); if (!n) { toast("Write about how much was emptied"); return; }
+      document.getElementById("modal").innerHTML = "";
+      send("empty", { id: uuid(), kind: E.kind, yard: E.yard, note: n, run_id: DATA.run.id, ts: nowIso() }); endShift(); });
+    document.getElementById("em-note").focus(); };
+  step1();
 }
 function openClearCheck(pid, part) {
   const p = PROPS[pid], storm = DATA.storm; if (!p || !storm) return;
@@ -556,13 +594,7 @@ app.addEventListener("click", ev => {
   if (t.id === "login") { signIn(); return; }
   if (t.dataset.salted) { openQuick(UI.here, t.dataset.salted); return; }
   if (t.dataset.entry) { const e = DATA.entries.find(a => a.id === t.dataset.entry); if (e) openEdit(e); return; }
-  if (t.id === "finish") { confirmBox("End your shift?", "", "End", () => {
-      const mine = DATA.entries || [];
-      UI.report = { time: dur(Date.now() - new Date(DATA.run.started)), started: DATA.run.started, ended: nowIso(), crew: DATA.run.crew, entries: mine.slice().sort((a, b) => a.ts.localeCompare(b.ts)),
-        fills: (DATA.fills || []).filter(f => new Date(f.ts) >= new Date(DATA.run.started) - 1000).sort((a, b) => a.ts.localeCompare(b.ts)),
-        storm: DATA.storm ? DATA.storm.name : null,
-        clears: DATA.storm ? (DATA.clears || []).filter(c => c.crew.trim().toLowerCase() === AUTH.name.trim().toLowerCase()).sort((a, b) => a.ts.localeCompare(b.ts)) : [] };
-      send("finish_run", { id: DATA.run.id, ts: nowIso() }); UI.here = null; LS.del("here"); render(); window.scrollTo(0, 0); }); return; }
+  if (t.id === "finish") { openEndShift(); return; }
   if (t.id === "new-run") { UI.report = null; render(); return; }
   if (t.id === "start-run") { if (!DATA.run) send("start_run", { id: uuid(), ts: nowIso() }); startGps(); render(); toast("You're on the clock"); return; }
   if (t.dataset.go) { setTimeout(() => { UI.tab = t.dataset.go; LS.set("tab", UI.tab); render(); window.scrollTo(0, 0); }, 140); return; }
