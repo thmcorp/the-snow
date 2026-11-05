@@ -208,3 +208,5 @@ body.locked{position:fixed;left:0;right:0;width:100%;overflow:hidden}
 .sheet-bg{overscroll-behavior:contain}
 .sheet>*{flex-shrink:0}
 .sheet{max-height:85vh;max-height:85dvh;padding-bottom:calc(20px + env(safe-area-inset-bottom,0px))}
+.shiftlist.flat{max-height:none;overflow:visible}
+.tile.myshifts-tile{width:100%;min-height:96px}

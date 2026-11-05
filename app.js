@@ -423,8 +423,15 @@ function viewMine() {
     <div class="muted small">${UI.myFrom ? nice(UI.myFrom) : "…"} to ${UI.myTo ? nice(UI.myTo) : "…"} · ${list.length} shift${list.length === 1 ? "" : "s"}${live ? " · includes your shift in progress" : ""}</div>
     <div class="daterow"><label class="f" for="my-from">From<input type="date" id="my-from" value="${UI.myFrom || ""}"></label><label class="f" for="my-to">To<input type="date" id="my-to" value="${UI.myTo || ""}"></label></div>
     ${isWeek ? "" : `<button class="btn ghost" id="my-week">Back to this week</button>`}</section>
-    <section class="panel"><h2>My shifts</h2><div class="muted small">Tap a shift to see its log and fix an entry.</div>
-    ${list.length ? `<div class="shiftlist">${list.map(r => `<div class="shiftrow" data-myshift="${r.id}" role="button" tabindex="0"><div><b>${md(r.started)}</b> · in ${hm(r.started)} · ${r.ended ? "out " + hm(r.ended) : '<b style="color:var(--ok)">on now</b>'}</div><div class="muted small">${dur(ms(r))} worked · ${r.stops} stop${r.stops === 1 ? "" : "s"} salted</div>${r.note ? `<div class="small" style="white-space:pre-wrap">Note: ${esc(r.note)}</div>` : ""}<div class="small" style="font-weight:700;color:var(--accent)">View log ›</div></div>`).join("")}</div>` : `<p class="muted" style="margin:0">No shifts in these dates.</p>`}</section>`;
+    <button class="tile myshifts-tile" id="my-shifts"><span class="tile-h">My shifts</span><span class="muted small">${list.length ? `${list.length} shift${list.length === 1 ? "" : "s"} · tap to see logs and fix entries` : "No shifts in these dates"}</span></button>`;
+}
+function myShiftRow(r) { const ms = (r.ended ? new Date(r.ended) : Date.now()) - new Date(r.started);
+  return `<div class="shiftrow" data-myshift="${r.id}" role="button" tabindex="0"><div><b>${md(r.started)}</b> · in ${hm(r.started)} · ${r.ended ? "out " + hm(r.ended) : '<b style="color:var(--ok)">on now</b>'}</div><div class="small">Time worked: <b>${dur(ms)}</b></div>${r.note ? `<div class="small" style="white-space:pre-wrap">Note: ${esc(r.note)}</div>` : ""}<div class="small" style="font-weight:700;color:var(--accent)">View log ›</div></div>`; }
+function openMyShifts() {
+  const list = UI.mine || [];
+  modal(`<h2>My shifts</h2><div class="muted small" style="margin-top:-8px">Tap a shift to see its log and fix an entry.</div>
+    ${list.length ? `<div class="shiftlist flat">${list.map(myShiftRow).join("")}</div>` : `<p class="muted" style="margin:0">No shifts in these dates.</p>`}
+    <button class="btn ghost block" id="cancel">Close</button>`, t => { const r = t.closest("[data-myshift]"); if (r) openShiftLog(AUTH.name, r.dataset.myshift, true, openMyShifts); });
 }
 function viewCrew() {
   const ss = DATA.sessions || []; const runs = DATA.active_runs || [];
@@ -497,8 +504,8 @@ function confirmBox(title, body, okLabel, onOk) {
   modal(`<h2>${esc(title)}</h2>${body ? `<p class="muted" style="margin:0">${esc(body)}</p>` : ""}<button class="btn salt block" id="ok">${esc(okLabel)}</button><button class="btn ghost block" id="cancel">Cancel</button>`,
     (t, close) => { if (t.id === "ok") { close(); onOk(); } });
 }
-async function openShiftLog(name, id, mine) {
-  const back = mine ? `<button class="btn ghost block" id="cancel">Close</button>` : `<div class="row"><button class="btn ghost" id="shift-back">‹ Back</button><button class="btn ghost" id="cancel">Close</button></div>`;
+async function openShiftLog(name, id, mine, backTo) {
+  const back = mine && !backTo ? `<button class="btn ghost block" id="cancel">Close</button>` : `<div class="row"><button class="btn ghost" id="shift-back">‹ Back</button><button class="btn ghost" id="cancel">Close</button></div>`;
   let h;
   const show = () => {
     const r = h.run, g = []; (h.entries || []).forEach(e => { let x = g.find(y => y.id === e.prop_id); if (!x) g.push(x = { id: e.prop_id, items: [] }); x.items.push(e); });
@@ -513,7 +520,7 @@ async function openShiftLog(name, id, mine) {
       <h3 style="margin:6px 0 0">Salt log</h3>${g.length ? `<div class="muted small">${g.length} propert${g.length === 1 ? "y" : "ies"} salted</div>` : ""}${salt}${clr}${fl}${nt}${back}`, onB);
   };
   const onB = t => {
-    if (t.id === "shift-back") { openCrewHistory(name); return; }
+    if (t.id === "shift-back") { if (backTo) backTo(); else openCrewHistory(name); return; }
     const en = t.closest("[data-myentry]");
     if (en) { const e = h.entries.find(x => x.id === en.dataset.myentry); if (e) openEdit(e, (act, d) => { if (act === "delete") h.entries = h.entries.filter(x => x.id !== e.id); else Object.assign(e, d); show(); }, show); return; }
     const fi = t.closest("[data-myfill]");
@@ -751,7 +758,7 @@ app.addEventListener("toggle", ev => { const d = ev.target; if (d.dataset && d.d
 app.addEventListener("pointerdown", ev => { const b = ev.target.closest(".btn,.tile"); if (!b) return; b.classList.add("pressed"); if (navigator.vibrate && b.closest(".shift,.tiles")) navigator.vibrate(15); setTimeout(() => b.classList.remove("pressed"), 160); });
 app.addEventListener("click", ev => {
   const cr = ev.target.closest("[data-crew]"); if (cr) { openCrewHistory(cr.dataset.crew); return; }
-  const msh = ev.target.closest("[data-myshift]"); if (msh) { openShiftLog(AUTH.name, msh.dataset.myshift, true); return; }
+  if (ev.target.closest("#my-shifts")) { openMyShifts(); return; }
   if (ev.target.id === "my-week") { [UI.myFrom, UI.myTo] = weekRange(); UI.mine = null; UI.mineErr = false; render(); return; }
   const t = ev.target.closest("button"); if (!t) return;
   if (t.id === "login") { signIn(); return; }
