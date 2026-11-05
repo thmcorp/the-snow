@@ -141,3 +141,4 @@ textarea{resize:vertical}
 .ck.bad small{color:#c62828;white-space:normal}
 .clear.bad{background:#fdecea;border-color:#c62828}
 td.badcell{color:#c62828;background:#fdecea;font-weight:600}
+.clgrid .btn.yes{background:var(--ok);color:#fff;border-color:var(--ok)}

@@ -382,7 +382,7 @@ function openClearCheck(pid, part) {
   const ask = part === "drives" ? "Make sure the whole parking lot is clear." : "Make sure all doors, walks, and the dumpster area are fully cleared.";
   modal(`<div class="muted small" style="text-transform:uppercase;letter-spacing:.08em;font-weight:700">${clearWord(part)}</div><h2 style="margin-top:-8px">Fully cleared?</h2><div class="muted small" style="margin-top:-8px">${esc(p.addr)}</div>
     <p style="margin:0;font-weight:600">${ask}</p>
-    <div class="clgrid"><button class="btn salt huge" id="cl-yes">Yes, fully cleared</button><button class="btn bad huge" id="cl-no">Couldn't fully clear</button></div>
+    <div class="clgrid"><button class="btn yes huge" id="cl-yes">Yes, fully cleared</button><button class="btn bad huge" id="cl-no">Couldn't fully clear</button></div>
     <div id="cl-note-wrap" hidden><label class="f" for="cl-note">What couldn't be cleared?<textarea id="cl-note" rows="3" placeholder="e.g. cars parked in back row, dumpster blocked"></textarea></label>
       <button class="btn salt block" id="cl-save">Check off with note</button></div>
     <button class="btn ghost block" id="cancel">Cancel</button>`, (x, close) => {
