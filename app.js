@@ -84,8 +84,11 @@ function applyLocal(item) {
     case "fill_edit": DATA.fills.forEach(f => { if (f.id === d.id) { if (d.yard) f.yard = d.yard; if (d.bags != null) f.bags = d.bags; } }); break;
     case "fill_delete": DATA.fills = DATA.fills.filter(f => f.id !== d.id); break;
     case "clear":
+      { const old = (DATA.clears || []).find(c => c.prop_id === d.prop_id && c.part === d.part);
       DATA.clears = (DATA.clears || []).filter(c => !(c.prop_id === d.prop_id && c.part === d.part));
-      if (d.checked) DATA.clears.push({ storm_id: d.storm_id, prop_id: d.prop_id, part: d.part, crew: AUTH.name, ts: d.ts, note: d.note || "" });
+      if (d.checked) { const x = { storm_id: d.storm_id, prop_id: d.prop_id, part: d.part, crew: AUTH.name, ts: d.ts, note: d.note || "" };
+        if (!x.note && old && (old.note || old.was_note)) { x.was_note = old.note || old.was_note; x.was_ts = old.note ? old.ts : old.was_ts; }
+        DATA.clears.push(x); } }
       break;
     case "storm_end": DATA.storm = null; DATA.clears = []; break;
   }
@@ -174,7 +177,7 @@ function tableHTML(entries) {
 }
 function dataRows(od) {
   const salt = od.entries.map(a => ({ ts: a.ts, crew: a.crew, type: "Salt", prop: a.prop_id, area: a.area, detail: amtWord(a.amt) + (a.note ? " · " + a.note : "") }));
-  const clr = od.clear_log.map(c => ({ ts: c.ts, crew: c.crew, type: "Clearing", prop: c.prop_id, area: c.part, detail: (c.checked ? (c.note ? "Checked, not fully cleared: " + c.note : "Checked cleared") : "Unchecked") + (c.storm_name ? " · " + c.storm_name : "") }));
+  const clr = od.clear_log.map(c => ({ ts: c.ts, crew: c.crew, type: "Clearing", prop: c.prop_id, area: c.part, detail: (c.checked ? (c.note ? "Checked, not fully cleared: " + c.note : c.was_note ? `RETURN TRIP: fully cleared (not cleared at ${hm(c.was_ts)}: ${c.was_note})` : "Checked cleared") : "Unchecked") + (c.storm_name ? " · " + c.storm_name : "") }));
   const nt = (od.notes || []).map(n => ({ ts: n.ts, crew: n.crew, type: "Shift note", prop: "", area: "", detail: n.note }));
   return [...salt, ...clr, ...nt].sort((a, b) => a.ts.localeCompare(b.ts));
 }
@@ -363,7 +366,7 @@ function pastStorms() {
   return `<section class="panel"><h2>Past storms</h2>${list.length ? list.map(st => {
     const cm = {}; (st.clears || []).forEach(c => { (cm[c.prop_id] = cm[c.prop_id] || {})[c.part] = c; });
     const ok = p => parts(p).every(a => (cm[p.id] || {})[a]); const n = all.filter(ok).length;
-    const cell = (p, a) => { if (a === "walks" && !p.walks) return `<td class="nowalk"></td>`; const c = (cm[p.id] || {})[a]; return c ? `<td class="t${c.note ? " badcell" : ""}">${c.note ? "✗" : "✓"} ${md(c.ts)} ${hm(c.ts)} · ${esc(c.crew)}${c.note ? ` · ${esc(c.note)}` : ""}</td>` : `<td class="t muted" style="font-weight:600">Not checked</td>`; };
+    const cell = (p, a) => { if (a === "walks" && !p.walks) return `<td class="nowalk"></td>`; const c = (cm[p.id] || {})[a]; return c ? `<td class="t${c.note ? " badcell" : ""}">${c.note ? "✗" : "✓"} ${md(c.ts)} ${hm(c.ts)} · ${esc(c.crew)}${c.note ? ` · ${esc(c.note)}` : ""}${c.was_note ? `<div class="rtrip">✗ RETURN TRIP · not cleared ${hm(c.was_ts)}: ${esc(c.was_note)}</div>` : ""}</td>` : `<td class="t muted" style="font-weight:600">Not checked</td>`; };
     return `<details class="storm"><summary><b>${esc(st.name)}</b><span class="muted small">${fmtWhen(st.started)} to ${fmtWhen(st.ended)} · ${n}/${all.length} fully cleared</span></summary>
       <div class="tbl-wrap"><table class="log"><thead><tr><th>Property</th><th>Parking Lot(s)</th><th>Walkways</th></tr></thead><tbody>${ROUTES.map(r => `<tr class="rh"><td colspan="3">${esc(r.name)}</td></tr>` + r.props.map(p => `<tr><td>${esc(p.addr)}</td>${saltOnly(p) ? `<td colspan="2" class="muted small">Salt only, no clearing</td>` : cell(p, "drives") + cell(p, "walks")}</tr>`).join("")).join("")}</tbody></table></div></details>`;
   }).join("") : `<p class="muted" style="margin:0">When you end a storm, its checklist is saved here.</p>`}</section>`;
@@ -378,7 +381,9 @@ function viewClear() {
   const cm = {}; (DATA.clears || []).forEach(c => { (cm[c.prop_id] = cm[c.prop_id] || {})[c.part] = c; });
   const all = clearable(); const parts = p => p.walks ? ["drives", "walks"] : ["drives"];
   const isDone = p => parts(p).every(a => (cm[p.id] || {})[a]); const done = all.filter(isDone).length;
-  const box = (p, a) => { const c = (cm[p.id] || {})[a]; return `<label class="ck${c ? " on" : ""}${c && c.note ? " bad" : ""}" for="clr-${p.id}-${a}"><input type="checkbox" id="clr-${p.id}-${a}" data-clear="${p.id}" data-part="${a}" ${c ? "checked" : ""}><span><b>${clearWord(a)}</b>${c ? `<small>${hm(c.ts)} · ${esc(c.crew)}${c.note ? ` · ${esc(c.note)}` : ""}</small>` : ""}</span></label>`; };
+  const box = (p, a) => { const c = (cm[p.id] || {})[a];
+    if (c && c.note) return `<button class="ck on bad" data-clearfix="${p.id}" data-part="${a}"><span class="xmark">✗</span><span><b>${clearWord(a)}</b><small>Not fully cleared · ${hm(c.ts)} · ${esc(c.crew)} · ${esc(c.note)}</small></span></button>`;
+    return `<label class="ck${c ? " on" : ""}" for="clr-${p.id}-${a}"><input type="checkbox" id="clr-${p.id}-${a}" data-clear="${p.id}" data-part="${a}" ${c ? "checked" : ""}><span><b>${clearWord(a)}</b>${c ? `<small>${hm(c.ts)} · ${esc(c.crew)}</small>${c.was_note ? `<small class="rtrip">✗ Return trip · not cleared at ${hm(c.was_ts)}: ${esc(c.was_note)}</small>` : ""}` : ""}</span></label>`; };
   return `${clockBar()}<section class="panel"><div class="runbar"><div><h2>${esc(DATA.storm.name)}</h2><div class="muted small">${done} of ${all.length} properties fully cleared · updates live</div></div>${owner ? `<button class="btn ghost" id="storm-end">End storm</button>` : ""}</div>
     <div class="progress"><i style="width:${all.length ? Math.round(done / all.length * 100) : 0}%"></i></div></section>
     ${ROUTES.map(r => `<h3 class="route-h">${esc(r.name)} · ${r.props.filter(p => !saltOnly(p) && isDone(p)).length}/${r.props.filter(p => !saltOnly(p)).length}</h3>` + r.props.map(p => saltOnly(p)
@@ -610,6 +615,24 @@ function openEndShift() {
     document.getElementById("shift-note").focus(); };
   stepUsed();
 }
+function confirmUncheck(pid, part) {
+  const p = PROPS[pid]; if (!p || !DATA.storm) return; const sid = DATA.storm.id;
+  modal(`<div class="muted small" style="text-transform:uppercase;letter-spacing:.08em;font-weight:700">${clearWord(part)}</div><h2 style="margin-top:-8px">Uncheck this?</h2><div class="muted small" style="margin-top:-8px">${esc(p.addr)}</div>
+    <p style="margin:0;font-weight:600">Only uncheck if it was checked off by mistake.</p>
+    <div class="clgrid"><button class="btn bad huge" id="unc-yes">Yes, uncheck</button><button class="btn ghost huge" id="cancel">Keep checked</button></div>`, (t, close) => {
+    if (t.id === "unc-yes") { close(); if (!DATA.storm || DATA.storm.id !== sid) return; send("clear", { storm_id: sid, prop_id: pid, part, checked: false, ts: nowIso() }); toast("Unchecked"); } });
+}
+function openClearFix(pid, part) {
+  const p = PROPS[pid], c = ((DATA.clears || []).find(x => x.prop_id === pid && x.part === part)); if (!p || !c || !DATA.storm) return; const sid = DATA.storm.id;
+  modal(`<div class="muted small" style="text-transform:uppercase;letter-spacing:.08em;font-weight:700">${clearWord(part)} · return trip</div><h2 style="margin-top:-8px">Fully cleared now?</h2><div class="muted small" style="margin-top:-8px">${esc(p.addr)}</div>
+    <div class="redsoft">✗ Not fully cleared at ${hm(c.ts)} by ${esc(c.crew)}: ${esc(c.note)}</div>
+    <p style="margin:0;font-weight:600">${part === "drives" ? "Make sure the whole parking lot is clear." : "Make sure all doors, walks, and the dumpster area are fully cleared."}</p>
+    <button class="btn yes block huge" id="fix-yes">Yes, fully cleared now</button>
+    <div class="row"><button class="btn ghost" id="fix-uncheck">Uncheck</button><button class="btn ghost" id="cancel">Cancel</button></div>`, (t, close) => {
+    if (t.id === "fix-yes") { close(); if (!DATA.storm || DATA.storm.id !== sid) return; if (!DATA.run) send("start_run", { id: uuid(), ts: nowIso() });
+      send("clear", { storm_id: sid, prop_id: pid, part, checked: true, note: "", ts: nowIso() }); toast("Checked off · return trip logged"); }
+    else if (t.id === "fix-uncheck") confirmUncheck(pid, part); });
+}
 function openClearCheck(pid, part) {
   const p = PROPS[pid], storm = DATA.storm; if (!p || !storm) return;
   const ask = part === "drives" ? "Make sure the whole parking lot is clear." : "Make sure all doors, walks, and the dumpster area are fully cleared.";
@@ -753,7 +776,7 @@ app.addEventListener("change", ev => {
   if (t.id === "from" || t.id === "to") { UI[t.id] = t.value; UI.ownerData = null; render(); return; }
   if (t.dataset.clear) {
     if (!DATA.storm) return;
-    if (!t.checked) { send("clear", { storm_id: DATA.storm.id, prop_id: t.dataset.clear, part: t.dataset.part, checked: false, ts: nowIso() }); return; }
+    if (!t.checked) { t.checked = true; confirmUncheck(t.dataset.clear, t.dataset.part); return; }
     t.checked = false; openClearCheck(t.dataset.clear, t.dataset.part);
   }
 });
@@ -766,6 +789,7 @@ app.addEventListener("click", ev => {
   const t = ev.target.closest("button"); if (!t) return;
   if (t.id === "login") { signIn(); return; }
   if (t.dataset.salted) { openQuick(UI.here, t.dataset.salted); return; }
+  if (t.dataset.clearfix) { openClearFix(t.dataset.clearfix, t.dataset.part); return; }
   if (t.dataset.sitemap) { openSiteMap(t.dataset.sitemap); return; }
   if (t.dataset.mapup) { pickSiteMap(t.dataset.mapup); return; }
   if (t.dataset.maprm) { const id = t.dataset.maprm; confirmBox("Remove this site map?", "Crews will no longer see it.", "Remove", () => rpc("remove", { prop_id: id }, "site_map").then(() => { UI.maps = (UI.maps || []).filter(x => x !== id); LS.set("maps", UI.maps); toast("Site map removed"); render(); }).catch(() => toast("Couldn't remove. Check your signal."))); return; }
