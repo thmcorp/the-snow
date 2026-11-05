@@ -483,7 +483,7 @@ function render() {
   if (!AUTH || !DATA) { tabs.hidden = true; who.innerHTML = ""; app.innerHTML = viewHome(); return; }
   buildRoutes();
   tabs.hidden = false;
-  who.innerHTML = `<span class="small"><b>${esc(AUTH.name)}</b>${AUTH.role === "owner" ? " · owner" : ""}</span><button class="linkbtn" id="logout">Sign out</button>`;
+  who.innerHTML = `<span class="small"><b>${esc(AUTH.name)}</b></span><button class="linkbtn" id="logout">Sign out</button>`;
   const owner = AUTH.role === "owner"; if (!owner && (UI.tab === "logs" || UI.tab === "crew")) UI.tab = "home";
   document.getElementById("tab-logs").hidden = !owner; document.getElementById("tab-crew").hidden = !owner; document.getElementById("tab-mine").hidden = false;
   document.querySelector(".tabs .wrap").style.gridTemplateColumns = owner ? "repeat(6,1fr)" : "repeat(4,1fr)"; tabs.classList.toggle("six", owner);
@@ -550,7 +550,7 @@ async function openCrewHistory(name) {
   let h; try { h = await rpc("history", { crew: name }, "crew_history"); } catch (e) { modal(`<h2>${esc(name)}</h2><p class="err">Couldn't load. Check your signal.</p><button class="btn ghost block" id="cancel">Close</button>`, () => {}); return; }
   const shifts = h.shifts || [];
   const total = shifts.filter(r => r.ended && Date.now() - new Date(r.started) < 7 * 864e5).reduce((t, r) => t + (new Date(r.ended) - new Date(r.started)), 0);
-  const row = r => `<div class="shiftrow" data-shift="${r.id}" role="button" tabindex="0"><div><b>${md(r.started)}</b> · in ${hm(r.started)} · ${r.ended ? "out " + hm(r.ended) : '<b style="color:var(--ok)">on now</b>'}</div><div class="muted small">${dur((r.ended ? new Date(r.ended) : Date.now()) - new Date(r.started))} worked · ${r.stops} stop${r.stops === 1 ? "" : "s"} salted</div>${r.note ? `<div class="small" style="white-space:pre-wrap">Note: ${esc(r.note)}</div>` : ""}<div class="small" style="font-weight:700;color:var(--accent)">View log ›</div></div>`;
+  const row = r => `<div class="shiftrow" data-shift="${r.id}" role="button" tabindex="0"><div><b>${md(r.started)}</b> · in ${hm(r.started)} · ${r.ended ? "out " + hm(r.ended) : '<b style="color:var(--ok)">on now</b>'}</div><div class="small">Time worked: <b>${dur((r.ended ? new Date(r.ended) : Date.now()) - new Date(r.started))}</b></div>${r.note ? `<div class="small" style="white-space:pre-wrap">Note: ${esc(r.note)}</div>` : ""}<div class="small" style="font-weight:700;color:var(--accent)">View log ›</div></div>`;
   modal(`<h2>${esc(name)}</h2><div class="muted small" style="margin-top:-8px">Time worked, last 7 days: <b>${dur(total)}</b></div>
     <h3 style="margin:4px 0 0">Clock in / out</h3>
     ${shifts.length ? `<div class="shiftlist">${shifts.map(row).join("")}</div>` : `<p class="muted" style="margin:0">No clock-ins yet.</p>`}
