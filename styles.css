@@ -160,3 +160,11 @@ label.f.bigpick{font-size:18px;font-weight:700}
 .sumlist{display:flex;flex-direction:column;gap:12px;margin-top:8px}
 .sumrow{display:flex;flex-direction:column;gap:6px;padding-bottom:12px;border-bottom:1px solid var(--line)}
 .sumrow:last-child{border-bottom:0;padding-bottom:0}
+.runitem[data-crew]{cursor:pointer}
+.runitem[data-crew]:active{filter:brightness(.92)}
+.chev{display:flex;align-items:center;gap:10px;font-size:26px;color:var(--muted);line-height:1}
+.entry.badchip{background:var(--bad-bg);color:#c62828}
+.sheet .tbl-wrap{max-height:50vh;overflow:auto}
+.shiftlist{display:flex;flex-direction:column;max-height:45vh;overflow:auto;border:1px solid var(--line);border-radius:8px}
+.shiftrow{padding:10px 12px;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}
+.shiftrow:last-child{border-bottom:0}

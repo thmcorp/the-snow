@@ -53,11 +53,11 @@ function buildRoutes() {
 const allProps = () => ROUTES.flatMap(r => r.props);
 
 // ---------- server ----------
-async function rpc(action, data) {
+async function rpc(action, data, fn) {
   if (!CFG.SUPABASE_URL || !CFG.SUPABASE_ANON_KEY) throw { code: "config" };
   let res;
   try {
-    res = await fetch(CFG.SUPABASE_URL.replace(/\/$/, "") + "/rest/v1/rpc/api", {
+    res = await fetch(CFG.SUPABASE_URL.replace(/\/$/, "") + "/rest/v1/rpc/" + (fn || "api"), {
       method: "POST",
       headers: { "Content-Type": "application/json", apikey: CFG.SUPABASE_ANON_KEY, Authorization: "Bearer " + CFG.SUPABASE_ANON_KEY },
       body: JSON.stringify({ p_name: AUTH && AUTH.name, p_pin: AUTH && AUTH.pin, p_action: action, p_data: data || {} })
@@ -296,6 +296,8 @@ function viewReport(r) {
     <button class="btn salt block" id="new-run">Done</button></section>
     <section class="panel"><h2>Your log</h2>
       ${rows ? `<div class="muted small">${byProp.length} propert${byProp.length === 1 ? "y" : "ies"} salted</div><div class="sumlist">${rows}</div>` : `<p class="muted" style="margin:0">No salting logged this shift.</p>`}
+      ${r.storm ? (() => { const g = []; (r.clears || []).forEach(c => { let x = g.find(y => y.id === c.prop_id); if (!x) g.push(x = { id: c.prop_id, items: [] }); x.items.push(c); });
+        return `<h3 style="margin:14px 0 6px">Clearing · ${esc(r.storm)}</h3>` + (g.length ? `<div class="sumlist">${g.map(x => `<div class="sumrow"><div style="font-weight:700">${esc(propName(x.id))}</div><div class="logged">${x.items.map(c => `<span class="entry${c.note ? " badchip" : ""}">${clearWord(c.part)} · ${c.note ? "not fully cleared: " + esc(c.note) : "cleared"}</span>`).join("")}</div></div>`).join("")}</div>` : `<p class="muted" style="margin:0">Nothing checked off.</p>`); })() : ""}
       ${(r.fills || []).length ? `<h3 style="margin:14px 0 6px">Salt fill-ups</h3><div class="logged">${r.fills.map(f => `<span class="entry">${esc(fillWord(f))}</span>`).join("")}</div>` : ""}
     </section>`;
 }
@@ -359,10 +361,10 @@ function viewCrew() {
   const on = list.filter(live), off = list.filter(x => !live(x)).slice(0, 20);
   const row = x => { const run = runs.find(r => r.crew.trim().toLowerCase() === x.name.trim().toLowerCase()); const here = x.here && PROPS[x.here] ? PROPS[x.here].addr : null;
     const isOn = live(x);
-    return `<div class="runitem"><div style="min-width:0"><b>${esc(x.name)}</b>${x.role === "owner" ? ' <span class="muted small">owner</span>' : ""}
+    return `<div class="runitem" data-crew="${esc(x.name)}" role="button" tabindex="0"><div style="min-width:0"><b>${esc(x.name)}</b>${x.role === "owner" ? ' <span class="muted small">owner</span>' : ""}
       <div class="muted small">Signed in ${fmtWhen(x.signed_in)}${x.signed_out ? ` · signed out ${fmtWhen(x.signed_out)}` : ` · last seen ${fmtWhen(x.last_seen)}`}</div>
       ${run && isOn ? `<div class="small" style="color:var(--ok);font-weight:600">On the clock · ${run.stops} stop${run.stops === 1 ? "" : "s"}${here ? ` · at ${esc(here)}` : ""}</div>` : ""}</div>
-      ${isOn ? '<span class="dot"></span>' : ""}</div>`; };
+      </div><span class="chev">${isOn ? '<span class="dot"></span>' : ""}›</span></div>`; };
   const located = allProps().filter(p => p.lat != null).length;
   return `<section class="panel"><h2>Signed in now</h2><div class="muted small">${on.length} ${on.length === 1 ? "person" : "people"} signed in</div><div class="runs">${on.map(row).join("") || '<p class="muted">Nobody is signed in.</p>'}</div></section>
     <section class="panel"><h2>Signed out</h2><div class="runs">${off.map(row).join("") || '<p class="muted" style="margin:0">Nobody yet.</p>'}</div></section>
@@ -411,6 +413,18 @@ function modal(html, onClick) { const m = document.getElementById("modal"); m.in
 function confirmBox(title, body, okLabel, onOk) {
   modal(`<h2>${esc(title)}</h2><p class="muted" style="margin:0">${esc(body)}</p><button class="btn salt block" id="ok">${esc(okLabel)}</button><button class="btn ghost block" id="cancel">Cancel</button>`,
     (t, close) => { if (t.id === "ok") { close(); onOk(); } });
+}
+async function openCrewHistory(name) {
+  modal(`<h2>${esc(name)}</h2><p class="muted" style="margin:0">Loading…</p><button class="btn ghost block" id="cancel">Close</button>`, () => {});
+  let h; try { h = await rpc("history", { crew: name }, "crew_history"); } catch (e) { modal(`<h2>${esc(name)}</h2><p class="err">Couldn't load. Check your signal.</p><button class="btn ghost block" id="cancel">Close</button>`, () => {}); return; }
+  const shifts = h.shifts || [];
+  const total = shifts.filter(r => r.ended && Date.now() - new Date(r.started) < 7 * 864e5).reduce((t, r) => t + (new Date(r.ended) - new Date(r.started)), 0);
+  const row = r => `<div class="shiftrow"><div><b>${md(r.started)}</b> · in ${hm(r.started)} · ${r.ended ? "out " + hm(r.ended) : '<b style="color:var(--ok)">on now</b>'}</div><div class="muted small">${dur((r.ended ? new Date(r.ended) : Date.now()) - new Date(r.started))} worked · ${r.stops} stop${r.stops === 1 ? "" : "s"} salted</div></div>`;
+  modal(`<h2>${esc(name)}</h2><div class="muted small" style="margin-top:-8px">Time worked, last 7 days: <b>${dur(total)}</b></div>
+    <h3 style="margin:4px 0 0">Clock in / out</h3>
+    ${shifts.length ? `<div class="shiftlist">${shifts.map(row).join("")}</div>` : `<p class="muted" style="margin:0">No clock-ins yet.</p>`}
+    <details><summary class="muted small">App sign-ins (${(h.sessions || []).length})</summary><div class="small" style="margin-top:6px">${(h.sessions || []).map(x => `${fmtWhen(x.signed_in)} to ${x.signed_out ? fmtWhen(x.signed_out) : "still signed in"}`).join("<br>")}</div></details>
+    <button class="btn ghost block" id="cancel">Close</button>`, () => {});
 }
 function openClearCheck(pid, part) {
   const p = PROPS[pid], storm = DATA.storm; if (!p || !storm) return;
@@ -524,6 +538,7 @@ app.addEventListener("change", ev => {
 });
 app.addEventListener("pointerdown", ev => { const b = ev.target.closest(".btn,.tile"); if (!b) return; b.classList.add("pressed"); if (navigator.vibrate && b.closest(".shift,.tiles")) navigator.vibrate(15); setTimeout(() => b.classList.remove("pressed"), 160); });
 app.addEventListener("click", ev => {
+  const cr = ev.target.closest("[data-crew]"); if (cr) { openCrewHistory(cr.dataset.crew); return; }
   const t = ev.target.closest("button"); if (!t) return;
   if (t.id === "login") { signIn(); return; }
   if (t.dataset.salted) { openQuick(UI.here, t.dataset.salted); return; }
@@ -531,7 +546,9 @@ app.addEventListener("click", ev => {
   if (t.id === "finish") { confirmBox("End your shift?", "Your entries are already in the main log.", "End", () => {
       const mine = DATA.entries || [];
       UI.report = { time: dur(Date.now() - new Date(DATA.run.started)), started: DATA.run.started, ended: nowIso(), crew: DATA.run.crew, entries: mine.slice().sort((a, b) => a.ts.localeCompare(b.ts)),
-        fills: (DATA.fills || []).filter(f => f.ts >= DATA.run.started).sort((a, b) => a.ts.localeCompare(b.ts)) };
+        fills: (DATA.fills || []).filter(f => f.ts >= DATA.run.started).sort((a, b) => a.ts.localeCompare(b.ts)),
+        storm: DATA.storm ? DATA.storm.name : null,
+        clears: DATA.storm ? (DATA.clears || []).filter(c => c.crew.trim().toLowerCase() === AUTH.name.trim().toLowerCase()).sort((a, b) => a.ts.localeCompare(b.ts)) : [] };
       send("finish_run", { id: DATA.run.id, ts: nowIso() }); UI.here = null; LS.del("here"); render(); window.scrollTo(0, 0); }); return; }
   if (t.id === "new-run") { UI.report = null; render(); return; }
   if (t.id === "start-run") { if (!DATA.run) send("start_run", { id: uuid(), ts: nowIso() }); startGps(); render(); toast("You're on the clock"); return; }
