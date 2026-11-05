@@ -235,7 +235,7 @@ function fillCard() {
   return `<section class="arrive fillcard"><div class="gps fillhead">Salt fill-up</div>
     <div class="muted small">Tap when you load the truck.</div>
     <div class="acts"><button class="btn salt huge" data-fill="bulk">Sander</button><button class="btn walk huge" data-fill="bags">Bags</button></div>
-    ${mine.length ? `<div class="muted small" style="font-weight:600;margin-top:4px">Fill-ups this shift (tap to fix)</div><div class="logged">${mine.map(x => `<button class="entry" data-fillfix="${x.id}">${esc(fillWord(x))}</button>`).join("")}</div>` : ""}
+    ${mine.length ? `<div class="muted small" style="font-weight:600;margin-top:4px">Fill-ups this shift (tap to fix)</div><div class="logged">${mine.map(x => `<button class="entry" data-fillfix="${x.id}">${esc(fillWord(x).replace(/^(Sander|Bags)/, m => m + " · " + hm(x.ts)))}</button>`).join("")}</div>` : ""}
   </section>`;
 }
 function clockBar() {
