@@ -295,13 +295,13 @@ function viewRun() {
   const run = DATA.run;
   const here = UI.here ? PROPS[UI.here] : null;
   if (!run && !here) {
-    return `<section class="arrive waiting">${gpsLine(false)}<div class="muted small">Clock in on Home. If you forget, you're clocked in automatically when you log your first salting.</div>${propSelect()}</section>${fillCard()}`;
+    return `<section class="arrive waiting saltcard"><div class="apphead">Salt Applications</div>${gpsLine(false)}<div class="muted small">Clock in on Home. If you forget, you're clocked in automatically when you log your first salting.</div>${propSelect()}</section>${fillCard()}`;
   }
   const mine = DATA.entries || [];
   const stops = new Set(mine.map(a => a.prop_id)).size, total = allProps().length;
   const hereLogged = here ? mine.filter(a => a.prop_id === here.id).sort((a, b) => a.ts.localeCompare(b.ts)) : [];
   const owner = AUTH.role === "owner";
-  const arrival = here ? `<section class="arrive">
+  const arrival = here ? `<section class="arrive saltcard"><div class="apphead">Salt Applications</div>
       ${gpsLine(true)}
       <div><div class="addr-big">${esc(here.addr)}</div>${here.client ? `<div class="client">${esc(here.client)}</div>` : ""}</div>
       ${hereLogged.length ? `<div class="logged">${hereLogged.map(e => `<button class="entry" data-entry="${e.id}">${e.area === "drives" ? "Parking Lot(s)" : "Walks"} · ${hm(e.ts)} · ${amtWord(e.amt)}</button>`).join("")}</div>` : ""}
@@ -310,7 +310,7 @@ function viewRun() {
         ${here.walks ? `<button class="btn walk huge" data-salted="walks">Salted Walkways</button>` : ""}
       </div>
       ${owner ? `<button class="linkbtn" id="save-spot" style="align-self:flex-start">${here.lat != null ? "Update" : "Save"} GPS location for this property (stand on the lot)</button>` : ""}
-    </section>` : `<section class="arrive waiting">${gpsLine(false)}</section>`;
+    </section>` : `<section class="arrive waiting saltcard"><div class="apphead">Salt Applications</div>${gpsLine(false)}</section>`;
   return `${clockBar()}
     ${arrival}
     <section class="panel">${propSelect()}</section>

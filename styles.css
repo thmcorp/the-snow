@@ -231,3 +231,5 @@ body{padding-bottom:calc(110px + env(safe-area-inset-bottom,0px))}
 .arrive.fillcard{border:4px solid var(--accent);background:color-mix(in srgb,var(--accent) 9%,var(--surface));box-shadow:0 2px 0 rgba(0,0,0,.04)}
 .arrive.fillcard .gps.fillhead{font-family:var(--display);font-size:28px;font-weight:800;color:var(--accent);letter-spacing:.03em}
 .arrive.fillcard .gps.fillhead .dot{display:none}
+.apphead{font-family:var(--display);font-size:28px;font-weight:800;color:var(--salt);text-transform:uppercase;letter-spacing:.03em;line-height:1.1}
+.saltcard .gps{font-size:13px;margin-top:-6px}
