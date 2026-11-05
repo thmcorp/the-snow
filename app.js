@@ -81,6 +81,7 @@ function applyLocal(item) {
     case "salt_edit": DATA.entries.forEach(e => { if (e.id === d.id) Object.assign(e, d); }); break;
     case "salt_delete": DATA.entries = DATA.entries.filter(e => e.id !== d.id); break;
     case "fill": case "empty": if (!DATA.fills.some(f => f.id === d.id)) DATA.fills.push({ ...d, crew: AUTH.name }); break;
+    case "fill_edit": DATA.fills.forEach(f => { if (f.id === d.id) { if (d.yard) f.yard = d.yard; if (d.bags != null) f.bags = d.bags; } }); break;
     case "fill_delete": DATA.fills = DATA.fills.filter(f => f.id !== d.id); break;
     case "clear":
       DATA.clears = (DATA.clears || []).filter(c => !(c.prop_id === d.prop_id && c.part === d.part));
@@ -100,7 +101,7 @@ async function flush() {
   try {
     while (OUTBOX.length) {
       const item = OUTBOX[0];
-      try { await rpc(item.action, item.data, item.action === "empty" ? "log_empty" : item.action === "shift_note" ? "shift_note" : undefined); setOnline(true); }
+      try { await rpc(item.action, item.data, item.action === "empty" ? "log_empty" : item.action === "shift_note" ? "shift_note" : item.action === "fill_edit" ? "fill_edit" : undefined); setOnline(true); }
       catch (e) {
         if (e.code === "network" || e.code === "config" || (e.status && e.status >= 500)) { setOnline(false); break; }
         if (e.code === "bad_pin") { signOutLocal("Your PIN changed. Sign in again."); break; }
@@ -502,7 +503,7 @@ async function openShiftLog(name, id, mine) {
     const fl = (h.fills || []).length ? `<h3 style="margin:6px 0 0">Salt fill-ups</h3><div class="logged">${h.fills.map(f => `<${tag} class="entry"${mine ? ` data-myfill="${f.id}"` : ""}>${esc(fillWord(f).replace(/^(Sander|Bags)/, m => m + " · " + hm(f.ts)))}</${tag}>`).join("")}</div>` : "";
     const nt = r.note ? `<h3 style="margin:6px 0 0">Shift notes</h3><p style="margin:0;white-space:pre-wrap">${esc(r.note)}</p>` : "";
     modal(`<h2>${mine ? "Shift log" : esc(name)}</h2><div class="muted small" style="margin-top:-8px"><b>${md(r.started)}</b> · in ${hm(r.started)} · ${r.ended ? "out " + hm(r.ended) : "on now"} · ${dur((r.ended ? new Date(r.ended) : Date.now()) - new Date(r.started))} worked</div>
-      ${mine ? `<div class="muted small">Tap an entry to fix it.</div>` : ""}
+      ${mine ? `<div class="muted small">Tap an entry or fill-up to fix it.</div>` : ""}
       <h3 style="margin:6px 0 0">Salt log</h3>${g.length ? `<div class="muted small">${g.length} propert${g.length === 1 ? "y" : "ies"} salted</div>` : ""}${salt}${clr}${fl}${nt}${back}`, onB);
   };
   const onB = t => {
@@ -511,7 +512,7 @@ async function openShiftLog(name, id, mine) {
     if (en) { const e = h.entries.find(x => x.id === en.dataset.myentry); if (e) openEdit(e, (act, d) => { if (act === "delete") h.entries = h.entries.filter(x => x.id !== e.id); else Object.assign(e, d); show(); }, show); return; }
     const fi = t.closest("[data-myfill]");
     if (fi) { const f = h.fills.find(x => x.id === fi.dataset.myfill); if (!f) return;
-      confirmBox("Remove this fill-up?", `${fillWord(f)} at ${hm(f.ts)}. Remove it if it was tapped by mistake.`, "Remove", () => { send("fill_delete", { id: f.id }); h.fills = h.fills.filter(x => x.id !== f.id); toast("Fill-up removed"); show(); }); }
+      openFillEdit(f, (act, d) => { if (act === "delete") h.fills = h.fills.filter(x => x.id !== f.id); else { if (d.yard) f.yard = d.yard; if (d.bags != null) f.bags = d.bags; } show(); }, show); }
   };
   modal(`<h2>${mine ? "Shift log" : esc(name)}</h2><p class="muted" style="margin:0">Loading…</p>${back}`, onB);
   try { h = await rpc("shift", { id }, mine ? "my_logs" : "crew_history"); } catch (e) { h = null; }
@@ -638,6 +639,24 @@ function openLogNote(pid) {
     const n = document.getElementById("log-note").value.trim(); const tgt = items.filter(e => e.note).pop() || last;
     close(); send("salt_edit", { id: tgt.id, amt: tgt.amt, note: n, ts: tgt.ts }); toast(n ? "Note saved" : "Note removed"); });
   document.getElementById("log-note").focus();
+}
+function openFillEdit(f, onDone, onCancel) {
+  if (f.kind !== "bulk" && f.kind !== "bags") { confirmBox("Remove this entry?", `${fillWord(f)} at ${hm(f.ts)}.`, "Remove", () => { send("fill_delete", { id: f.id }); toast("Removed"); if (onDone) onDone("delete"); }); return; }
+  const bags = f.kind === "bags"; let yard = f.yard, n = f.bags;
+  const yards = bags ? YARDS_BAGS : YARDS_BULK;
+  const draw = () => modal(`<div class="muted small" style="text-transform:uppercase;letter-spacing:.08em;font-weight:700">${bags ? "Bags" : "Sander"} · ${md(f.ts)} ${hm(f.ts)}</div><h2>Edit this fill-up</h2>
+    ${bags ? `<label class="f" for="fe-bags">How many bags?<select id="fe-bags">${Array.from({ length: 50 }, (_, i) => i + 1).map(i => `<option value="${i}" ${i === +n ? "selected" : ""}>${i}</option>`).join("")}</select></label>` : ""}
+    <div class="muted small" style="font-weight:600">From which Storage Facility?</div>
+    <div class="locs small-locs">${yards.map(l => `<button class="btn walk${l === yard ? " picked" : ""}" data-feyard="${l}">${l}</button>`).join("")}</div>
+    <button class="btn salt block" id="fe-save">Save changes</button>
+    <div class="row"><button class="btn ghost" id="fe-del">Remove fill-up</button><button class="btn ghost" id="${onCancel ? "fe-cancel" : "cancel"}">Cancel</button></div>`, (t, close) => {
+      const y = t.closest("[data-feyard]"); if (y) { if (bags) n = document.getElementById("fe-bags").value; yard = y.dataset.feyard; draw(); return; }
+      if (t.id === "fe-cancel") { onCancel(); return; }
+      if (t.id === "fe-del") { close(); send("fill_delete", { id: f.id }); toast("Fill-up removed"); if (onDone) onDone("delete"); return; }
+      if (t.id === "fe-save") { const d = { id: f.id, yard }; if (bags) d.bags = +document.getElementById("fe-bags").value;
+        close(); send("fill_edit", d); toast("Fill-up updated"); if (onDone) onDone("edit", d); }
+    });
+  draw();
 }
 function openEdit(e, onDone, onCancel) {
   const p = PROPS[e.prop_id]; let amt = +e.amt; const presets = [[1, "Full"], [0.5, "Half"]];
@@ -774,7 +793,7 @@ app.addEventListener("click", ev => {
     return;
   }
   if (t.dataset.fillfix) { const x = DATA.fills.find(f => f.id === t.dataset.fillfix); if (!x) return;
-    confirmBox("Remove this fill-up?", `${fillWord(x)} at ${hm(x.ts)}. Remove it if it was tapped by mistake.`, "Remove", () => { send("fill_delete", { id: x.id }); toast("Fill-up removed"); }); }
+    openFillEdit(x); }
 });
 
 // ---------- start ----------

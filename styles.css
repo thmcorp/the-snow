@@ -196,3 +196,6 @@ a.btn{text-decoration:none;display:flex;align-items:center;justify-content:cente
 .mapscroll{flex:1;overflow:auto;touch-action:pan-x pan-y pinch-zoom;-webkit-overflow-scrolling:touch}
 .mapscroll img{display:block;width:100%;height:auto}
 .shiftrow[data-shift]{cursor:pointer}.shiftrow[data-shift]:active{filter:brightness(.9)}
+#my-from,#my-to{text-align:center}#my-from::-webkit-date-and-time-value,#my-to::-webkit-date-and-time-value{text-align:center}
+label[for=my-from],label[for=my-to]{text-align:center}
+[data-feyard].picked{background:var(--salt);color:var(--salt-ink)}
