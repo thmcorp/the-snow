@@ -213,3 +213,9 @@ body.locked{position:fixed;left:0;right:0;width:100%;overflow:hidden}
 .gogrid{display:grid}
 .sitebtns{display:grid;grid-template-columns:1fr 1fr;gap:8px}.sitebtns .btn.sm{width:100%}.sitebtns .btn.yes{background:var(--ok);color:#fff;border-color:var(--ok)}
 .gogrid.stack{gap:10px}
+.cks{gap:10px;margin-top:12px}
+.ck{min-height:86px;padding:14px 12px;gap:12px;border-width:3px;border-radius:12px;font-size:19px}
+.ck b{font-size:19px;line-height:1.15}
+.ck input{width:36px;height:36px}
+.ck small{font-size:13px}
+.sitebtns .btn.sm{min-height:34px;font-size:14px;padding:4px 10px}

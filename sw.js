@@ -1,6 +1,6 @@
 // THM Snow service worker: keeps the app opening with no signal.
 // Network first for the app files, cached copy when offline. Database calls are never cached.
-const CACHE = "thm-snow-v55";
+const CACHE = "thm-snow-v56";
 const SHELL = ["./", "index.html", "app.js", "styles.css", "config.js", "manifest.webmanifest", "icons/icon-192.png",
   "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"];
 self.addEventListener("install", e => {
