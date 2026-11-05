@@ -468,17 +468,32 @@ function confirmBox(title, body, okLabel, onOk) {
   modal(`<h2>${esc(title)}</h2>${body ? `<p class="muted" style="margin:0">${esc(body)}</p>` : ""}<button class="btn salt block" id="ok">${esc(okLabel)}</button><button class="btn ghost block" id="cancel">Cancel</button>`,
     (t, close) => { if (t.id === "ok") { close(); onOk(); } });
 }
+async function openShiftLog(name, id) {
+  const back = `<div class="row"><button class="btn ghost" id="shift-back">‹ Back</button><button class="btn ghost" id="cancel">Close</button></div>`;
+  const onB = t => { if (t.id === "shift-back") openCrewHistory(name); };
+  modal(`<h2>${esc(name)}</h2><p class="muted" style="margin:0">Loading…</p>${back}`, onB);
+  let h; try { h = await rpc("shift", { id }, "crew_history"); } catch (e) { h = null; }
+  if (!h || !h.run) { modal(`<h2>${esc(name)}</h2><p class="err">Couldn't load this shift. Check your signal.</p>${back}`, onB); return; }
+  const r = h.run, g = []; (h.entries || []).forEach(e => { let x = g.find(y => y.id === e.prop_id); if (!x) g.push(x = { id: e.prop_id, items: [] }); x.items.push(e); });
+  const cg = []; (h.clears || []).filter(c => c.checked).forEach(c => { let x = cg.find(y => y.id === c.prop_id); if (!x) cg.push(x = { id: c.prop_id, items: [] }); x.items.push(c); });
+  const salt = g.length ? `<div class="sumlist">${g.map(x => `<div class="sumrow"><div style="font-weight:700">${esc(propName(x.id))}</div><div class="logged">${x.items.map(e => `<span class="entry">${e.area === "drives" ? "Parking Lot(s)" : "Walks"} · ${hm(e.ts)} · ${amtWord(e.amt)}${e.note ? " · " + esc(e.note) : ""}</span>`).join("")}</div></div>`).join("")}</div>` : `<p class="muted" style="margin:0">No salting logged.</p>`;
+  const clr = cg.length ? `<h3 style="margin:6px 0 0">Clearing</h3><div class="sumlist">${cg.map(x => `<div class="sumrow"><div style="font-weight:700">${esc(propName(x.id))}</div><div class="logged">${x.items.map(c => `<span class="entry${c.note ? " badchip" : ""}">${clearWord(c.part)} · ${hm(c.ts)} · ${c.note ? "not fully cleared: " + esc(c.note) : "cleared"}</span>`).join("")}</div></div>`).join("")}</div>` : "";
+  const fl = (h.fills || []).length ? `<h3 style="margin:6px 0 0">Salt fill-ups</h3><div class="logged">${h.fills.map(f => `<span class="entry">${esc(fillWord(f).replace(/^(Sander|Bags)/, m => m + " · " + hm(f.ts)))}</span>`).join("")}</div>` : "";
+  const nt = r.note ? `<h3 style="margin:6px 0 0">Shift notes</h3><p style="margin:0;white-space:pre-wrap">${esc(r.note)}</p>` : "";
+  modal(`<h2>${esc(name)}</h2><div class="muted small" style="margin-top:-8px"><b>${md(r.started)}</b> · in ${hm(r.started)} · ${r.ended ? "out " + hm(r.ended) : "on now"} · ${dur((r.ended ? new Date(r.ended) : Date.now()) - new Date(r.started))} worked</div>
+    <h3 style="margin:6px 0 0">Salt log</h3>${g.length ? `<div class="muted small">${g.length} propert${g.length === 1 ? "y" : "ies"} salted</div>` : ""}${salt}${clr}${fl}${nt}${back}`, onB);
+}
 async function openCrewHistory(name) {
   modal(`<h2>${esc(name)}</h2><p class="muted" style="margin:0">Loading…</p><button class="btn ghost block" id="cancel">Close</button>`, () => {});
   let h; try { h = await rpc("history", { crew: name }, "crew_history"); } catch (e) { modal(`<h2>${esc(name)}</h2><p class="err">Couldn't load. Check your signal.</p><button class="btn ghost block" id="cancel">Close</button>`, () => {}); return; }
   const shifts = h.shifts || [];
   const total = shifts.filter(r => r.ended && Date.now() - new Date(r.started) < 7 * 864e5).reduce((t, r) => t + (new Date(r.ended) - new Date(r.started)), 0);
-  const row = r => `<div class="shiftrow"><div><b>${md(r.started)}</b> · in ${hm(r.started)} · ${r.ended ? "out " + hm(r.ended) : '<b style="color:var(--ok)">on now</b>'}</div><div class="muted small">${dur((r.ended ? new Date(r.ended) : Date.now()) - new Date(r.started))} worked · ${r.stops} stop${r.stops === 1 ? "" : "s"} salted</div>${r.note ? `<div class="small" style="white-space:pre-wrap">Note: ${esc(r.note)}</div>` : ""}</div>`;
+  const row = r => `<div class="shiftrow" data-shift="${r.id}" role="button" tabindex="0"><div><b>${md(r.started)}</b> · in ${hm(r.started)} · ${r.ended ? "out " + hm(r.ended) : '<b style="color:var(--ok)">on now</b>'}</div><div class="muted small">${dur((r.ended ? new Date(r.ended) : Date.now()) - new Date(r.started))} worked · ${r.stops} stop${r.stops === 1 ? "" : "s"} salted</div>${r.note ? `<div class="small" style="white-space:pre-wrap">Note: ${esc(r.note)}</div>` : ""}<div class="small" style="font-weight:700;color:var(--accent)">View log ›</div></div>`;
   modal(`<h2>${esc(name)}</h2><div class="muted small" style="margin-top:-8px">Time worked, last 7 days: <b>${dur(total)}</b></div>
     <h3 style="margin:4px 0 0">Clock in / out</h3>
     ${shifts.length ? `<div class="shiftlist">${shifts.map(row).join("")}</div>` : `<p class="muted" style="margin:0">No clock-ins yet.</p>`}
     <details><summary class="muted small">App sign-ins (${(h.sessions || []).length})</summary><div class="small" style="margin-top:6px">${(h.sessions || []).map(x => `${fmtWhen(x.signed_in)} to ${x.signed_out ? fmtWhen(x.signed_out) : "still signed in"}`).join("<br>")}</div></details>
-    <button class="btn ghost block" id="cancel">Close</button>`, () => {});
+    <button class="btn ghost block" id="cancel">Close</button>`, t => { const r = t.closest("[data-shift]"); if (r) openShiftLog(name, r.dataset.shift); });
 }
 function endShift(note) {
   if (!DATA.run) return;
