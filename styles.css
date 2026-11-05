@@ -224,3 +224,7 @@ button.ck{font:inherit;color:var(--ink);text-align:left;width:100%}
 .rtrip{color:#c62828 !important;font-weight:700;white-space:normal;font-size:12px}
 .redsoft{background:var(--bad-bg);color:#c62828;border:2px solid #c62828;border-radius:10px;padding:10px 12px;font-weight:700}
 .tabs.six button{font-size:13px;padding:14px 1px;letter-spacing:-.01em}
+.tabs button{min-height:74px;padding:20px 4px 22px;font-size:17px}
+.tabs.six button{min-height:74px;font-size:14px;padding:20px 1px 22px}
+.tabs button[aria-selected=true]{border-top-width:4px;background:var(--bg)}
+body{padding-bottom:calc(110px + env(safe-area-inset-bottom,0px))}
