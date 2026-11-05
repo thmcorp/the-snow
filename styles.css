@@ -34,7 +34,7 @@ h1,h2,h3{font-family:var(--display);letter-spacing:.01em;margin:0;text-wrap:bala
 h1{font-size:24px}
 h2{font-size:22px}
 .demo-tag{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--salt-ink);background:var(--salt);padding:3px 8px;border-radius:4px}
-main{display:flex;flex-direction:column;gap:16px;padding-block:16px}
+main{display:flex;flex-direction:column;gap:22px;padding-block:16px}
 .panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:12px}
 .muted{color:var(--muted)}
 .small{font-size:14px}
@@ -142,7 +142,6 @@ textarea{resize:vertical}
 .clear.bad{background:var(--bad-bg);border-color:#c62828}
 td.badcell{color:#c62828;background:var(--bad-bg);font-weight:600}
 .clgrid .btn.yes{background:var(--ok);color:#fff;border-color:var(--ok)}
-.arrive.fillcard{margin-top:40px}
 label.f.bigpick{font-size:18px;font-weight:700}
 .bigpick select{font-size:20px;padding:16px 14px;min-height:60px;font-weight:600}
 .clock{font-family:var(--display);font-size:52px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
