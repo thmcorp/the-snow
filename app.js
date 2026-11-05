@@ -461,17 +461,21 @@ function openEndShift() {
     <button class="btn ghost block" id="cancel">Cancel</button>`, x => {
       if (x.id === "used-yes") { document.getElementById("modal").innerHTML = ""; endShift(); }
       else if (x.id === "used-no") step1(); });
-  const stepLeft = () => { modal(`<h2>Salt left on the truck</h2>
-    <div class="clgrid"><button class="btn salt" data-leftkind="left_bulk">Sander</button><button class="btn walk" data-leftkind="left_bags">Bags</button></div>
-    <div class="notewrap"><label class="f" for="left-note">About how much is left?<textarea id="left-note" rows="3" placeholder="e.g. quarter of the sander, 5 bags"></textarea></label>
+  const stepLeft = () => modal(`<h2>Salt left on the truck</h2><p style="margin:0;font-weight:600">Is it in the sander or bags?</p>
+    <div class="clgrid"><button class="btn salt huge" id="left-sander">Sander</button><button class="btn walk huge" id="left-bags">Bags</button></div>
+    <button class="btn ghost block" id="cancel">Cancel</button>`, x => {
+      if (x.id === "left-sander") modal(`<h2>Empty the sander first</h2><p style="margin:0;font-weight:600">Salt must be emptied out in the bin before you can clock out.</p>
+        <button class="btn salt block" id="cancel">OK</button>`, () => {});
+      else if (x.id === "left-bags") stepBags(); });
+  const stepBags = () => { modal(`<h2>Bags left on the truck</h2>
+    <div class="notewrap"><label class="f" for="left-note">About how many bags are on the truck?<textarea id="left-note" rows="2" placeholder="e.g. 5 bags"></textarea></label>
     <button class="btn bad block huge" id="left-done">End shift</button></div>
     <button class="btn ghost block" id="cancel">Cancel</button>`, x => {
-      const k = x.closest("[data-leftkind]"); if (k) { E.left = k.dataset.leftkind; document.querySelectorAll("[data-leftkind]").forEach(b => b.classList.toggle("picked", b === k)); return; }
       if (x.id !== "left-done") return;
-      if (!E.left) { toast("Pick sander or bags"); return; }
-      const n = document.getElementById("left-note").value.trim(); if (!n) { toast("Write about how much is left"); return; }
+      const n = document.getElementById("left-note").value.trim(); if (!n) { toast("Write about how many bags are on the truck"); return; }
       document.getElementById("modal").innerHTML = "";
-      send("empty", { id: uuid(), kind: E.left, yard: null, note: n, run_id: DATA.run.id, ts: nowIso() }); endShift(); }); };
+      send("empty", { id: uuid(), kind: "left_bags", yard: null, note: n, run_id: DATA.run.id, ts: nowIso() }); endShift(); });
+    document.getElementById("left-note").focus(); };
   const step2 = () => modal(`<h2>Salt emptied out</h2><div class="muted small" style="margin-top:-8px">At what Storage Facility was it emptied?</div>
     <div class="locs small-locs">${YARDS_BAGS.map(l => `<button class="btn walk" data-emloc="${l}">${l}</button>`).join("")}</div>
     <button class="btn ghost block" id="cancel">Cancel</button>`, x => { const l = x.closest("[data-emloc]"); if (l) { E.yard = l.dataset.emloc; step3(); } });
