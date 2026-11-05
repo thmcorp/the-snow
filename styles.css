@@ -234,3 +234,6 @@ body{padding-bottom:calc(110px + env(safe-area-inset-bottom,0px))}
 .apphead{font-family:var(--display);font-size:28px;font-weight:800;color:var(--salt);text-transform:uppercase;letter-spacing:.03em;line-height:1.1}
 .saltcard .gps{font-size:13px;margin-top:-6px}
 .pickdiv{border-top:1px solid var(--line);padding-top:14px}
+/* One border thickness for every colored rounded box */
+.arrive:not(.waiting),.arrive.saltcard,.tile.salt-tile,.tile.clear-tile,.clear.done,.clear.bad{border-width:4px;border-style:solid}
+.arrive.saltcard{border-color:var(--salt)}
