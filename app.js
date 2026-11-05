@@ -404,6 +404,27 @@ function viewLogs() {
       rows.slice(0, UI.allFeed ? 99999 : 15).map(r => `<tr><td class="t">${md(r.ts)} ${hm(r.ts)}</td><td><b>${esc(r.crew)}</b></td><td>${r.type}</td><td>${esc(propName(r.prop))}</td><td>${areaWord(r)}</td><td class="t">${esc(r.detail)}</td></tr>`).join("")}</tbody></table></div>
       ${rows.length > 15 && !UI.allFeed ? `<button class="btn ghost" id="all-feed">Show all ${rows.length} entries</button>` : ""}` : `<p class="muted" style="margin:0">Nothing logged yet.</p>`}</section>`;
 }
+const ymd = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+function weekRange() { const d = new Date(); d.setHours(0, 0, 0, 0); const mon = new Date(d); mon.setDate(d.getDate() - ((d.getDay() + 6) % 7)); const sun = new Date(mon); sun.setDate(mon.getDate() + 6); return [ymd(mon), ymd(sun)]; }
+async function loadMine() {
+  if (!UI.myFrom) [UI.myFrom, UI.myTo] = weekRange();
+  try { UI.mine = await rpc("shifts", { from: UI.myFrom || null, to: UI.myTo || null }, "my_logs"); } catch (e) { if (!UI.mine) UI.mine = null; UI.mineErr = true; }
+}
+function viewMine() {
+  if (!UI.myFrom) [UI.myFrom, UI.myTo] = weekRange();
+  if (!UI.mine) { if (!UI.mineErr) loadMine().then(render); return `${clockBar()}<section class="panel"><h2>My Logs</h2>${UI.mineErr ? `<p class="err" style="margin:0">Couldn't load. Check your signal.</p><button class="btn ghost" id="my-week">Try again</button>` : `<p class="muted" style="margin:0">Loading…</p>`}</section>`; }
+  const list = UI.mine, ms = r => (r.ended ? new Date(r.ended) : Date.now()) - new Date(r.started);
+  const total = list.reduce((t, r) => t + ms(r), 0); const live = list.some(r => !r.ended);
+  const [wf, wt] = weekRange(); const isWeek = UI.myFrom === wf && UI.myTo === wt;
+  const nice = v => { const [y, m, d] = v.split("-"); return `${+m}/${+d}`; };
+  return `${clockBar()}<section class="arrive shift"><div class="muted small" style="font-weight:600;text-transform:uppercase;letter-spacing:.06em">Total hours${isWeek ? " · this week" : ""}</div>
+    <div class="clock">${dur(total)}</div>
+    <div class="muted small">${UI.myFrom ? nice(UI.myFrom) : "…"} to ${UI.myTo ? nice(UI.myTo) : "…"} · ${list.length} shift${list.length === 1 ? "" : "s"}${live ? " · includes your shift in progress" : ""}</div>
+    <div class="row"><label class="f" for="my-from">From<input type="date" id="my-from" value="${UI.myFrom || ""}"></label><label class="f" for="my-to">To<input type="date" id="my-to" value="${UI.myTo || ""}"></label></div>
+    ${isWeek ? "" : `<button class="btn ghost" id="my-week">Back to this week</button>`}</section>
+    <section class="panel"><h2>My shifts</h2><div class="muted small">Tap a shift to see its log and fix an entry.</div>
+    ${list.length ? `<div class="shiftlist">${list.map(r => `<div class="shiftrow" data-myshift="${r.id}" role="button" tabindex="0"><div><b>${md(r.started)}</b> · in ${hm(r.started)} · ${r.ended ? "out " + hm(r.ended) : '<b style="color:var(--ok)">on now</b>'}</div><div class="muted small">${dur(ms(r))} worked · ${r.stops} stop${r.stops === 1 ? "" : "s"} salted</div>${r.note ? `<div class="small" style="white-space:pre-wrap">Note: ${esc(r.note)}</div>` : ""}<div class="small" style="font-weight:700;color:var(--accent)">View log ›</div></div>`).join("")}</div>` : `<p class="muted" style="margin:0">No shifts in these dates.</p>`}</section>`;
+}
 function viewCrew() {
   const ss = DATA.sessions || []; const runs = DATA.active_runs || [];
   const stale = x => Date.now() - new Date(x.last_seen).getTime() > 12 * 3600e3;
@@ -447,9 +468,10 @@ function render() {
   tabs.hidden = false;
   who.innerHTML = `<span class="small"><b>${esc(AUTH.name)}</b>${AUTH.role === "owner" ? " · owner" : ""}</span><button class="linkbtn" id="logout">Sign out</button>`;
   const owner = AUTH.role === "owner"; if (!owner && (UI.tab === "logs" || UI.tab === "crew")) UI.tab = "home";
-  document.getElementById("tab-logs").hidden = !owner; document.getElementById("tab-crew").hidden = !owner;
-  document.querySelector(".tabs .wrap").style.gridTemplateColumns = owner ? "repeat(5,1fr)" : "repeat(3,1fr)";
-  app.innerHTML = UI.tab === "home" ? viewStart() : UI.tab === "clear" ? viewClear() : UI.tab === "logs" ? viewLogs() : UI.tab === "crew" ? viewCrew() : viewRun();
+  if (owner && UI.tab === "mine") UI.tab = "home";
+  document.getElementById("tab-logs").hidden = !owner; document.getElementById("tab-crew").hidden = !owner; document.getElementById("tab-mine").hidden = owner;
+  document.querySelector(".tabs .wrap").style.gridTemplateColumns = owner ? "repeat(5,1fr)" : "repeat(4,1fr)";
+  app.innerHTML = UI.tab === "home" ? viewStart() : UI.tab === "clear" ? viewClear() : UI.tab === "logs" ? viewLogs() : UI.tab === "crew" ? viewCrew() : UI.tab === "mine" ? viewMine() : viewRun();
   document.querySelectorAll(".tabs button").forEach(b => b.setAttribute("aria-selected", b.dataset.tab === UI.tab));
   setOnline(UI.online);
 }
@@ -468,20 +490,33 @@ function confirmBox(title, body, okLabel, onOk) {
   modal(`<h2>${esc(title)}</h2>${body ? `<p class="muted" style="margin:0">${esc(body)}</p>` : ""}<button class="btn salt block" id="ok">${esc(okLabel)}</button><button class="btn ghost block" id="cancel">Cancel</button>`,
     (t, close) => { if (t.id === "ok") { close(); onOk(); } });
 }
-async function openShiftLog(name, id) {
-  const back = `<div class="row"><button class="btn ghost" id="shift-back">‹ Back</button><button class="btn ghost" id="cancel">Close</button></div>`;
-  const onB = t => { if (t.id === "shift-back") openCrewHistory(name); };
-  modal(`<h2>${esc(name)}</h2><p class="muted" style="margin:0">Loading…</p>${back}`, onB);
-  let h; try { h = await rpc("shift", { id }, "crew_history"); } catch (e) { h = null; }
-  if (!h || !h.run) { modal(`<h2>${esc(name)}</h2><p class="err">Couldn't load this shift. Check your signal.</p>${back}`, onB); return; }
-  const r = h.run, g = []; (h.entries || []).forEach(e => { let x = g.find(y => y.id === e.prop_id); if (!x) g.push(x = { id: e.prop_id, items: [] }); x.items.push(e); });
-  const cg = []; (h.clears || []).filter(c => c.checked).forEach(c => { let x = cg.find(y => y.id === c.prop_id); if (!x) cg.push(x = { id: c.prop_id, items: [] }); x.items.push(c); });
-  const salt = g.length ? `<div class="sumlist">${g.map(x => `<div class="sumrow"><div style="font-weight:700">${esc(propName(x.id))}</div><div class="logged">${x.items.map(e => `<span class="entry">${e.area === "drives" ? "Parking Lot(s)" : "Walks"} · ${hm(e.ts)} · ${amtWord(e.amt)}${e.note ? " · " + esc(e.note) : ""}</span>`).join("")}</div></div>`).join("")}</div>` : `<p class="muted" style="margin:0">No salting logged.</p>`;
-  const clr = cg.length ? `<h3 style="margin:6px 0 0">Clearing</h3><div class="sumlist">${cg.map(x => `<div class="sumrow"><div style="font-weight:700">${esc(propName(x.id))}</div><div class="logged">${x.items.map(c => `<span class="entry${c.note ? " badchip" : ""}">${clearWord(c.part)} · ${hm(c.ts)} · ${c.note ? "not fully cleared: " + esc(c.note) : "cleared"}</span>`).join("")}</div></div>`).join("")}</div>` : "";
-  const fl = (h.fills || []).length ? `<h3 style="margin:6px 0 0">Salt fill-ups</h3><div class="logged">${h.fills.map(f => `<span class="entry">${esc(fillWord(f).replace(/^(Sander|Bags)/, m => m + " · " + hm(f.ts)))}</span>`).join("")}</div>` : "";
-  const nt = r.note ? `<h3 style="margin:6px 0 0">Shift notes</h3><p style="margin:0;white-space:pre-wrap">${esc(r.note)}</p>` : "";
-  modal(`<h2>${esc(name)}</h2><div class="muted small" style="margin-top:-8px"><b>${md(r.started)}</b> · in ${hm(r.started)} · ${r.ended ? "out " + hm(r.ended) : "on now"} · ${dur((r.ended ? new Date(r.ended) : Date.now()) - new Date(r.started))} worked</div>
-    <h3 style="margin:6px 0 0">Salt log</h3>${g.length ? `<div class="muted small">${g.length} propert${g.length === 1 ? "y" : "ies"} salted</div>` : ""}${salt}${clr}${fl}${nt}${back}`, onB);
+async function openShiftLog(name, id, mine) {
+  const back = mine ? `<button class="btn ghost block" id="cancel">Close</button>` : `<div class="row"><button class="btn ghost" id="shift-back">‹ Back</button><button class="btn ghost" id="cancel">Close</button></div>`;
+  let h;
+  const show = () => {
+    const r = h.run, g = []; (h.entries || []).forEach(e => { let x = g.find(y => y.id === e.prop_id); if (!x) g.push(x = { id: e.prop_id, items: [] }); x.items.push(e); });
+    const cg = []; (h.clears || []).filter(c => c.checked).forEach(c => { let x = cg.find(y => y.id === c.prop_id); if (!x) cg.push(x = { id: c.prop_id, items: [] }); x.items.push(c); });
+    const tag = mine ? "button" : "span";
+    const salt = g.length ? `<div class="sumlist">${g.map(x => `<div class="sumrow"><div style="font-weight:700">${esc(propName(x.id))}</div><div class="logged">${x.items.map(e => `<${tag} class="entry"${mine ? ` data-myentry="${e.id}"` : ""}>${e.area === "drives" ? "Parking Lot(s)" : "Walks"} · ${hm(e.ts)} · ${amtWord(e.amt)}${e.note ? " · " + esc(e.note) : ""}</${tag}>`).join("")}</div></div>`).join("")}</div>` : `<p class="muted" style="margin:0">No salting logged.</p>`;
+    const clr = cg.length ? `<h3 style="margin:6px 0 0">Clearing</h3><div class="sumlist">${cg.map(x => `<div class="sumrow"><div style="font-weight:700">${esc(propName(x.id))}</div><div class="logged">${x.items.map(c => `<span class="entry${c.note ? " badchip" : ""}">${clearWord(c.part)} · ${hm(c.ts)} · ${c.note ? "not fully cleared: " + esc(c.note) : "cleared"}</span>`).join("")}</div></div>`).join("")}</div>` : "";
+    const fl = (h.fills || []).length ? `<h3 style="margin:6px 0 0">Salt fill-ups</h3><div class="logged">${h.fills.map(f => `<${tag} class="entry"${mine ? ` data-myfill="${f.id}"` : ""}>${esc(fillWord(f).replace(/^(Sander|Bags)/, m => m + " · " + hm(f.ts)))}</${tag}>`).join("")}</div>` : "";
+    const nt = r.note ? `<h3 style="margin:6px 0 0">Shift notes</h3><p style="margin:0;white-space:pre-wrap">${esc(r.note)}</p>` : "";
+    modal(`<h2>${mine ? "Shift log" : esc(name)}</h2><div class="muted small" style="margin-top:-8px"><b>${md(r.started)}</b> · in ${hm(r.started)} · ${r.ended ? "out " + hm(r.ended) : "on now"} · ${dur((r.ended ? new Date(r.ended) : Date.now()) - new Date(r.started))} worked</div>
+      ${mine ? `<div class="muted small">Tap an entry to fix it.</div>` : ""}
+      <h3 style="margin:6px 0 0">Salt log</h3>${g.length ? `<div class="muted small">${g.length} propert${g.length === 1 ? "y" : "ies"} salted</div>` : ""}${salt}${clr}${fl}${nt}${back}`, onB);
+  };
+  const onB = t => {
+    if (t.id === "shift-back") { openCrewHistory(name); return; }
+    const en = t.closest("[data-myentry]");
+    if (en) { const e = h.entries.find(x => x.id === en.dataset.myentry); if (e) openEdit(e, (act, d) => { if (act === "delete") h.entries = h.entries.filter(x => x.id !== e.id); else Object.assign(e, d); show(); }, show); return; }
+    const fi = t.closest("[data-myfill]");
+    if (fi) { const f = h.fills.find(x => x.id === fi.dataset.myfill); if (!f) return;
+      confirmBox("Remove this fill-up?", `${fillWord(f)} at ${hm(f.ts)}. Remove it if it was tapped by mistake.`, "Remove", () => { send("fill_delete", { id: f.id }); h.fills = h.fills.filter(x => x.id !== f.id); toast("Fill-up removed"); show(); }); }
+  };
+  modal(`<h2>${mine ? "Shift log" : esc(name)}</h2><p class="muted" style="margin:0">Loading…</p>${back}`, onB);
+  try { h = await rpc("shift", { id }, mine ? "my_logs" : "crew_history"); } catch (e) { h = null; }
+  if (!h || !h.run) { modal(`<h2>${mine ? "Shift log" : esc(name)}</h2><p class="err">Couldn't load this shift. Check your signal.</p>${back}`, onB); return; }
+  show();
 }
 async function openCrewHistory(name) {
   modal(`<h2>${esc(name)}</h2><p class="muted" style="margin:0">Loading…</p><button class="btn ghost block" id="cancel">Close</button>`, () => {});
@@ -604,7 +639,7 @@ function openLogNote(pid) {
     close(); send("salt_edit", { id: tgt.id, amt: tgt.amt, note: n, ts: tgt.ts }); toast(n ? "Note saved" : "Note removed"); });
   document.getElementById("log-note").focus();
 }
-function openEdit(e) {
+function openEdit(e, onDone, onCancel) {
   const p = PROPS[e.prop_id]; let amt = +e.amt; const presets = [[1, "Full"], [0.5, "Half"]];
   const isPreset = presets.some(x => x[0] === amt);
   modal(`<div class="muted small" style="text-transform:uppercase;letter-spacing:.08em;font-weight:700">Fix ${e.area === "drives" ? "parking lot(s)" : "walkways"}</div><h2>${esc(p ? p.addr : e.prop_id)}</h2>
@@ -612,13 +647,14 @@ function openEdit(e) {
     <label class="f" for="amt-other" id="other-wrap" ${isPreset ? "hidden" : ""}>Fraction<input type="number" id="amt-other" step="0.05" min="0.05" max="1" value="${isPreset ? "" : amt}" inputmode="decimal"></label>
     <label class="f" for="note">Note<input type="text" id="note" value="${esc(e.note || "")}"></label>
     <button class="btn salt block" id="save-entry">Save changes</button>
-    <div class="row"><button class="btn ghost" id="del-entry">Remove entry</button><button class="btn ghost" id="cancel">Cancel</button></div>`, (t, close) => {
+    <div class="row"><button class="btn ghost" id="del-entry">Remove entry</button><button class="btn ghost" id="${onCancel ? "edit-cancel" : "cancel"}">Cancel</button></div>`, (t, close) => {
+    if (t.id === "edit-cancel") { onCancel(); return; }
     const ab = t.closest("[data-amt]");
     if (ab) { document.querySelectorAll(".amt").forEach(x => x.classList.toggle("on", x === ab)); const o = ab.dataset.amt === "other"; document.getElementById("other-wrap").hidden = !o; if (!o) amt = +ab.dataset.amt; return; }
-    if (t.id === "del-entry") { close(); send("salt_delete", { id: e.id }); toast("Entry removed"); return; }
+    if (t.id === "del-entry") { close(); send("salt_delete", { id: e.id }); toast("Entry removed"); if (onDone) onDone("delete"); return; }
     if (t.id === "save-entry") {
       if (!document.getElementById("other-wrap").hidden) { const v = parseFloat(document.getElementById("amt-other").value); if (!(v > 0 && v <= 1)) { toast("Enter a fraction between .05 and 1"); return; } amt = v; }
-      close(); send("salt_edit", { id: e.id, amt, note: document.getElementById("note").value.trim(), ts: e.ts }); toast("Entry updated");
+      const nd = { id: e.id, amt, note: document.getElementById("note").value.trim(), ts: e.ts }; close(); send("salt_edit", nd); toast("Entry updated"); if (onDone) onDone("edit", nd);
     }
   });
 }
@@ -643,7 +679,7 @@ async function signIn() {
     toast(e.code === "bad_pin" ? "That PIN isn't right." : e.code === "network" ? "No signal. Try again when you have service." : e.code === "config" ? "The app isn't connected to its database yet." : "Couldn't sign in (" + e.code + ").");
   }
 }
-function signOutLocal(msg) { AUTH = null; DATA = null; OUTBOX = []; LS.del("auth"); LS.del("data"); LS.set("outbox", []); LS.del("here"); UI.here = null; UI.ownerData = null; render(); if (msg) toast(msg); }
+function signOutLocal(msg) { AUTH = null; DATA = null; OUTBOX = []; LS.del("auth"); LS.del("data"); LS.set("outbox", []); LS.del("here"); UI.here = null; UI.ownerData = null; UI.mine = null; UI.myFrom = null; render(); if (msg) toast(msg); }
 async function geocodeMissing(btn) {
   const missing = allProps().filter(p => p.lat == null); if (!missing.length) { toast("Every property already has a location."); return; }
   btn.disabled = true; let found = 0;
@@ -671,13 +707,14 @@ document.getElementById("who-bar").addEventListener("click", ev => {
     signOutLocal();
   });
 });
-document.querySelector(".tabs").addEventListener("click", ev => { const b = ev.target.closest("[data-tab]"); if (!b) return; UI.tab = b.dataset.tab; LS.set("tab", UI.tab); if (UI.tab === "logs") UI.ownerData = UI.ownerData; render(); window.scrollTo(0, 0); if (UI.tab === "logs") loadOwnerData().then(render); });
+document.querySelector(".tabs").addEventListener("click", ev => { const b = ev.target.closest("[data-tab]"); if (!b) return; UI.tab = b.dataset.tab; LS.set("tab", UI.tab); if (UI.tab === "logs") UI.ownerData = UI.ownerData; render(); window.scrollTo(0, 0); if (UI.tab === "logs") loadOwnerData().then(render); if (UI.tab === "mine") { UI.mineErr = false; loadMine().then(render); } });
 const app = document.getElementById("app");
 app.addEventListener("keydown", ev => { if (ev.key === "Enter" && (ev.target.id === "login-name" || ev.target.id === "login-pin")) signIn(); });
 app.addEventListener("change", ev => {
   const t = ev.target;
   if (t.id === "pick-prop" && t.value) { arriveAt(t.value); return; }
   if (t.id === "dir-prop") { UI.dirProp = t.value || null; render(); return; }
+  if (t.id === "my-from" || t.id === "my-to") { UI[t.id === "my-from" ? "myFrom" : "myTo"] = t.value; UI.mine = null; UI.mineErr = false; render(); return; }
   if (t.id === "from" || t.id === "to") { UI[t.id] = t.value; UI.ownerData = null; render(); return; }
   if (t.dataset.clear) {
     if (!DATA.storm) return;
@@ -689,6 +726,8 @@ app.addEventListener("toggle", ev => { const d = ev.target; if (d.dataset && d.d
 app.addEventListener("pointerdown", ev => { const b = ev.target.closest(".btn,.tile"); if (!b) return; b.classList.add("pressed"); if (navigator.vibrate && b.closest(".shift,.tiles")) navigator.vibrate(15); setTimeout(() => b.classList.remove("pressed"), 160); });
 app.addEventListener("click", ev => {
   const cr = ev.target.closest("[data-crew]"); if (cr) { openCrewHistory(cr.dataset.crew); return; }
+  const msh = ev.target.closest("[data-myshift]"); if (msh) { openShiftLog(AUTH.name, msh.dataset.myshift, true); return; }
+  if (ev.target.id === "my-week") { [UI.myFrom, UI.myTo] = weekRange(); UI.mine = null; UI.mineErr = false; render(); return; }
   const t = ev.target.closest("button"); if (!t) return;
   if (t.id === "login") { signIn(); return; }
   if (t.dataset.salted) { openQuick(UI.here, t.dataset.salted); return; }
