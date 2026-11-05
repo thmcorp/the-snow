@@ -212,3 +212,4 @@ body.locked{position:fixed;left:0;right:0;width:100%;overflow:hidden}
 .tile.myshifts-tile{width:100%;min-height:96px}
 .gogrid{display:grid}
 .sitebtns{display:grid;grid-template-columns:1fr 1fr;gap:8px}.sitebtns .btn.sm{width:100%}.sitebtns .btn.yes{background:var(--ok);color:#fff;border-color:var(--ok)}
+.gogrid.stack{gap:10px}
