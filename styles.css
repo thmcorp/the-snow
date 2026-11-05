@@ -206,3 +206,5 @@ label[for=my-from],label[for=my-to]{text-align:center}
 body.locked{position:fixed;left:0;right:0;width:100%;overflow:hidden}
 .sheet{overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
 .sheet-bg{overscroll-behavior:contain}
+.sheet>*{flex-shrink:0}
+.sheet{max-height:85vh;max-height:85dvh;padding-bottom:calc(20px + env(safe-area-inset-bottom,0px))}
