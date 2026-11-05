@@ -287,11 +287,17 @@ function viewStart() {
 }
 setInterval(() => { const e = document.getElementById("elapsed"); if (e) e.textContent = dur(Date.now() - new Date(e.dataset.since)); }, 20000);
 function viewReport(r) {
-  return `<section class="arrive"><div class="gps"><span class="dot"></span>Shift ended</div>
-    <h2>Nice work, ${esc(r.crew)}</h2>${r.time ? `<div class="muted">On the clock for ${r.time}</div>` : ""}
-    <div class="stats"><div class="stat"><b>${r.stops}</b>stops</div><div class="stat"><b>${r.drives}</b>parking lots</div><div class="stat"><b>${r.walks}</b>walkways</div></div>
-    <div class="muted">Everything you logged is already in the main log.</div>
-    <button class="btn salt block" id="new-run">Done</button></section>`;
+  const byProp = []; (r.entries || []).forEach(e => { let g = byProp.find(x => x.id === e.prop_id); if (!g) byProp.push(g = { id: e.prop_id, items: [] }); g.items.push(e); });
+  const rows = byProp.map(g => `<div class="sumrow"><div style="font-weight:700">${esc(propName(g.id))}</div><div class="logged">${g.items.map(e => `<span class="entry">${e.area === "drives" ? "Parking lots" : "Walks"} · ${amtWord(e.amt)}${e.note ? " (" + esc(e.note) + ")" : ""}</span>`).join("")}</div></div>`).join("");
+  return `<section class="arrive shift"><div class="gps"><span class="dot off"></span>Clocked out</div>
+    <div class="muted small" style="font-weight:600;text-transform:uppercase;letter-spacing:.06em">Time worked</div>
+    <div class="clock">${esc(r.time || "")}</div>
+    ${r.started ? `<div class="muted small">${hm(r.started)} to ${hm(r.ended)}</div>` : ""}
+    <button class="btn salt block" id="new-run">Done</button></section>
+    <section class="panel"><h2>Your log</h2>
+      ${rows ? `<div class="muted small">${byProp.length} propert${byProp.length === 1 ? "y" : "ies"} salted</div><div class="sumlist">${rows}</div>` : `<p class="muted" style="margin:0">No salting logged this shift.</p>`}
+      ${(r.fills || []).length ? `<h3 style="margin:14px 0 6px">Salt fill-ups</h3><div class="logged">${r.fills.map(f => `<span class="entry">${esc(fillWord(f))}</span>`).join("")}</div>` : ""}
+    </section>`;
 }
 function pastStorms() {
   if (AUTH.role !== "owner") return "";
@@ -491,7 +497,8 @@ async function geocodeMissing(btn) {
 // ---------- events ----------
 document.getElementById("who-bar").addEventListener("click", ev => {
   if (ev.target.id !== "logout") return;
-  if (DATA && DATA.run) { toast("Tap End on Home before signing out"); return; }
+  if (DATA && DATA.run) { UI.tab = "home"; LS.set("tab", "home"); UI.report = null; render(); window.scrollTo(0, 0); toast("Clock out first: tap End");
+    const e = document.getElementById("finish"); if (e) { e.classList.add("pulse"); setTimeout(() => e.classList.remove("pulse"), 2400); } return; }
   confirmBox("Sign out?", "You'll need your name and PIN to sign back in.", "Sign out", async () => {
     try { await rpc("logout", { session: AUTH.session }); } catch (e) {}
     signOutLocal();
@@ -518,7 +525,8 @@ app.addEventListener("click", ev => {
   if (t.dataset.entry) { const e = DATA.entries.find(a => a.id === t.dataset.entry); if (e) openEdit(e); return; }
   if (t.id === "finish") { confirmBox("End your shift?", "Your entries are already in the main log.", "End", () => {
       const mine = DATA.entries || [];
-      UI.report = { time: dur(Date.now() - new Date(DATA.run.started)), crew: DATA.run.crew, stops: new Set(mine.map(a => a.prop_id)).size, drives: mine.filter(a => a.area === "drives").length, walks: mine.filter(a => a.area === "walks").length };
+      UI.report = { time: dur(Date.now() - new Date(DATA.run.started)), started: DATA.run.started, ended: nowIso(), crew: DATA.run.crew, entries: mine.slice().sort((a, b) => a.ts.localeCompare(b.ts)),
+        fills: (DATA.fills || []).filter(f => f.ts >= DATA.run.started).sort((a, b) => a.ts.localeCompare(b.ts)) };
       send("finish_run", { id: DATA.run.id, ts: nowIso() }); UI.here = null; LS.del("here"); render(); window.scrollTo(0, 0); }); return; }
   if (t.id === "new-run") { UI.report = null; render(); return; }
   if (t.id === "start-run") { if (!DATA.run) send("start_run", { id: uuid(), ts: nowIso() }); startGps(); render(); toast("You're on the clock"); return; }
