@@ -189,3 +189,9 @@ label.f.bigpick{font-size:18px;font-weight:700}
 .addrlink{all:unset;cursor:pointer;font-weight:700;text-decoration:underline;text-underline-offset:3px;display:block}
 .maptag{display:inline-block;font-size:12px;font-weight:700;text-decoration:none;padding:1px 7px;margin-left:4px;border-radius:999px;background:var(--accent);color:var(--accent-ink);vertical-align:2px}
 a.btn{text-decoration:none;display:flex;align-items:center;justify-content:center}
+.sitebtns{display:flex;gap:8px;margin:8px 0 2px;flex-wrap:wrap}
+.btn.sm{min-height:36px;padding:6px 14px;font-size:15px;width:auto}
+.mapview{position:fixed;inset:0;z-index:60;background:var(--bg);display:flex;flex-direction:column}
+.mapbar{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 14px;background:var(--surface);border-bottom:1px solid var(--line)}
+.mapscroll{flex:1;overflow:auto;touch-action:pan-x pan-y pinch-zoom;-webkit-overflow-scrolling:touch}
+.mapscroll img{display:block;width:100%;height:auto}

@@ -23,7 +23,7 @@ let AUTH = LS.get("auth", null);            // {name, pin, role, session}
 let DATA = LS.get("data", null);            // last server state
 let OUTBOX = LS.get("outbox", []);          // pending writes [{action, data}]
 const UI = { tab: LS.get("tab", "home"), here: LS.get("here", null), from: "", to: "", allFeed: false,
-  report: null, online: true, ownerData: null, gps: { status: "off", pos: null }, lastAuto: null, flushing: false };
+  report: null, maps: null, online: true, ownerData: null, gps: { status: "off", pos: null }, lastAuto: null, flushing: false };
 
 // ---------- formatting ----------
 const pad = n => String(n).padStart(2, "0");
@@ -116,6 +116,7 @@ async function refresh() {
   try {
     const st = await rpc("state", { session: AUTH.session, here: UI.here || null });
     DATA = st; OUTBOX.forEach(applyLocal); LS.set("data", DATA);
+    rpc("list", {}, "site_map").then(l => { const k = JSON.stringify(l || []); if (k !== JSON.stringify(UI.maps || [])) { UI.maps = l || []; LS.set("maps", UI.maps); render(); } }).catch(() => {});
     if (AUTH.role !== st.role) { AUTH.role = st.role; LS.set("auth", AUTH); }
     setOnline(true);
     if (AUTH.role === "owner" && UI.tab === "logs") await loadOwnerData();
@@ -241,6 +242,31 @@ function fillCard() {
 const mapsQ = p => p.lat != null ? `${p.lat},${p.lng}` : p.addr.replace(/Smtihfield/i, "Smithfield").replace(/\bGW\b/, "George Washington Hwy");
 const mapsBtns = p => { const q = encodeURIComponent(mapsQ(p)), a = encodeURIComponent(p.addr.replace(/Smtihfield/i, "Smithfield"));
   return `<div class="clgrid"><a class="btn salt" target="_blank" rel="noopener" href="https://maps.apple.com/?daddr=${q}&q=${a}">Apple Maps</a><a class="btn walk" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&destination=${q}">Google Maps</a></div>`; };
+const hasMap = id => (UI.maps || LS.get("maps") || []).includes(id);
+const siteBtns = p => `<div class="sitebtns"><button class="btn ghost sm" data-maps="${p.id}">Directions</button>${hasMap(p.id) ? `<button class="btn ghost sm" data-sitemap="${p.id}">Site Map</button>` : ""}</div>`;
+async function openSiteMap(pid) {
+  const p = PROPS[pid]; if (!p) return;
+  modal(`<h2>Site Map</h2><div style="font-weight:600;margin-top:-8px">${esc(p.addr)}</div><p class="muted" style="margin:0">Loading…</p><button class="btn ghost block" id="cancel">Close</button>`, () => {});
+  let r; try { r = await rpc("get", { prop_id: pid }, "site_map"); } catch (e) { r = null; }
+  if (!r || !r.img) { modal(`<h2>Site Map</h2><p class="err">Couldn't load the site map. Check your signal.</p><button class="btn ghost block" id="cancel">Close</button>`, () => {}); return; }
+  const v = document.createElement("div"); v.className = "mapview";
+  v.innerHTML = `<div class="mapbar"><div><b>${esc(p.addr)}</b><div class="small">Pinch to zoom</div></div><button class="btn ghost sm" id="mapclose">Close</button></div><div class="mapscroll"><img alt="Site map for ${esc(p.addr)}" src="${r.img}"></div>`;
+  document.getElementById("modal").innerHTML = ""; document.body.appendChild(v);
+  v.querySelector("#mapclose").onclick = () => v.remove();
+}
+function pickSiteMap(pid) {
+  const inp = document.createElement("input"); inp.type = "file"; inp.accept = "image/*";
+  inp.onchange = () => { const f = inp.files[0]; if (!f) return; const img = new Image(); const url = URL.createObjectURL(f);
+    img.onload = async () => { const max = 2200, k = Math.min(1, max / Math.max(img.width, img.height));
+      const c = document.createElement("canvas"); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+      const g = c.getContext("2d"); g.fillStyle = "#fff"; g.fillRect(0, 0, c.width, c.height); g.drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(url);
+      const data = c.toDataURL("image/jpeg", 0.82); toast("Uploading site map…");
+      try { await rpc("save", { prop_id: pid, img: data }, "site_map"); UI.maps = [...new Set([...(UI.maps || []), pid])]; LS.set("maps", UI.maps); toast("Site map saved"); render(); }
+      catch (e) { toast("Couldn't upload. Check your signal and try again."); } };
+    img.onerror = () => toast("That file isn't a picture. Send a photo or screenshot of the site map.");
+    img.src = url; };
+  inp.click();
+}
 function openMaps(pid) {
   const p = PROPS[pid]; if (!p) return;
   modal(`<h2>Directions</h2><div style="font-weight:600;margin-top:-8px">${esc(p.addr)}</div>${mapsBtns(p)}<button class="btn ghost block" id="cancel">Cancel</button>`, (t, close) => { if (t.closest("a")) setTimeout(close, 300); });
@@ -306,7 +332,7 @@ function viewStart() {
     <button class="tile clear-tile" data-go="clear"><span class="tile-h">Clearing</span>${storm}</button></div>`;
   const out = owner && (DATA.active_runs || []).length ? `<section class="panel"><h2>On the clock now</h2><div class="small">${DATA.active_runs.map(r => `<b>${esc(r.crew)}</b> · ${dur(Date.now() - new Date(r.started))} since ${hm(r.started)} · ${r.stops} stop${r.stops === 1 ? "" : "s"}`).join("<br>")}</div></section>` : "";
   const dp = UI.dirProp && PROPS[UI.dirProp];
-  const dir = `<section class="panel"><h2>Directions</h2><label class="f bigpick" for="dir-prop">Pick a property<select id="dir-prop"><option value="">Select a property…</option>${ROUTES.map(r => `<optgroup label="${esc(r.name)}">${r.props.map(p => `<option value="${p.id}" ${p.id === UI.dirProp ? "selected" : ""}>${esc(p.addr)}</option>`).join("")}</optgroup>`).join("")}</select></label>${dp ? mapsBtns(dp) : ""}</section>`;
+  const dir = `<section class="panel"><h2>Directions</h2><label class="f bigpick" for="dir-prop">Pick a property<select id="dir-prop"><option value="">Select a property…</option>${ROUTES.map(r => `<optgroup label="${esc(r.name)}">${r.props.map(p => `<option value="${p.id}" ${p.id === UI.dirProp ? "selected" : ""}>${esc(p.addr)}</option>`).join("")}</optgroup>`).join("")}</select></label>${dp ? mapsBtns(dp) + (hasMap(dp.id) ? `<button class="btn ghost block" data-sitemap="${dp.id}">Site Map</button>` : "") + (owner ? `<div class="row"><button class="btn ghost" data-mapup="${dp.id}">${hasMap(dp.id) ? "Replace site map" : "Upload site map"}</button>${hasMap(dp.id) ? `<button class="btn ghost" data-maprm="${dp.id}">Remove</button>` : ""}</div>` : "") : ""}</section>`;
   return `<section class="panel"><h2 style="margin:0">Hi, ${esc(AUTH.name)}</h2></section>${shift}${tiles}${dir}${out}`;
 }
 setInterval(() => document.querySelectorAll(".elapsed").forEach(e => { e.textContent = dur(Date.now() - new Date(e.dataset.since)); }), 20000);
@@ -352,8 +378,8 @@ function viewClear() {
   return `${clockBar()}<section class="panel"><div class="runbar"><div><h2>${esc(DATA.storm.name)}</h2><div class="muted small">${done} of ${all.length} properties fully cleared · updates live</div></div>${owner ? `<button class="btn ghost" id="storm-end">End storm</button>` : ""}</div>
     <div class="progress"><i style="width:${all.length ? Math.round(done / all.length * 100) : 0}%"></i></div></section>
     ${ROUTES.map(r => `<h3 class="route-h">${esc(r.name)} · ${r.props.filter(p => !saltOnly(p) && isDone(p)).length}/${r.props.filter(p => !saltOnly(p)).length}</h3>` + r.props.map(p => saltOnly(p)
-      ? `<div class="clear saltonly"><div style="flex:1;min-width:0"><button class="addrlink" data-maps="${p.id}">${esc(p.addr)} <span class="maptag">Directions</span></button>${p.client ? `<div class="muted small">${esc(p.client)}</div>` : ""}<div class="small" style="font-weight:600;margin-top:6px">Salt only · no clearing</div></div></div>`
-      : `<div class="clear${isDone(p) ? " done" : ""}${parts(p).some(a => ((cm[p.id] || {})[a] || {}).note) ? " bad" : ""}"><div style="flex:1;min-width:0"><button class="addrlink" data-maps="${p.id}">${esc(p.addr)} <span class="maptag">Directions</span></button>${p.client ? `<div class="muted small">${esc(p.client)}</div>` : ""}
+      ? `<div class="clear saltonly"><div style="flex:1;min-width:0"><div style="font-weight:700">${esc(p.addr)}</div>${p.client ? `<div class="muted small">${esc(p.client)}</div>` : ""}${siteBtns(p)}<div class="small" style="font-weight:600;margin-top:6px">Salt only · no clearing</div></div></div>`
+      : `<div class="clear${isDone(p) ? " done" : ""}${parts(p).some(a => ((cm[p.id] || {})[a] || {}).note) ? " bad" : ""}"><div style="flex:1;min-width:0"><div style="font-weight:700">${esc(p.addr)}</div>${p.client ? `<div class="muted small">${esc(p.client)}</div>` : ""}${siteBtns(p)}
         <div class="cks">${parts(p).map(a => box(p, a)).join("")}</div></div></div>`).join("")).join("")}${pastStorms()}`;
 }
 function viewLogs() {
@@ -651,6 +677,9 @@ app.addEventListener("click", ev => {
   const t = ev.target.closest("button"); if (!t) return;
   if (t.id === "login") { signIn(); return; }
   if (t.dataset.salted) { openQuick(UI.here, t.dataset.salted); return; }
+  if (t.dataset.sitemap) { openSiteMap(t.dataset.sitemap); return; }
+  if (t.dataset.mapup) { pickSiteMap(t.dataset.mapup); return; }
+  if (t.dataset.maprm) { const id = t.dataset.maprm; confirmBox("Remove this site map?", "Crews will no longer see it.", "Remove", () => rpc("remove", { prop_id: id }, "site_map").then(() => { UI.maps = (UI.maps || []).filter(x => x !== id); LS.set("maps", UI.maps); toast("Site map removed"); render(); }).catch(() => toast("Couldn't remove. Check your signal."))); return; }
   if (t.closest && t.closest("[data-maps]")) { openMaps(t.closest("[data-maps]").dataset.maps); return; }
   if (t.dataset.lognote) { openLogNote(t.dataset.lognote); return; }
   if (t.dataset.entry) { const e = DATA.entries.find(a => a.id === t.dataset.entry); if (e) openEdit(e); return; }
