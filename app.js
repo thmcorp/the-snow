@@ -423,13 +423,13 @@ function viewMine() {
     <div class="muted small">${UI.myFrom ? nice(UI.myFrom) : "…"} to ${UI.myTo ? nice(UI.myTo) : "…"} · ${list.length} shift${list.length === 1 ? "" : "s"}${live ? " · includes your shift in progress" : ""}</div>
     <div class="daterow"><label class="f" for="my-from">From<input type="date" id="my-from" value="${UI.myFrom || ""}"></label><label class="f" for="my-to">To<input type="date" id="my-to" value="${UI.myTo || ""}"></label></div>
     ${isWeek ? "" : `<button class="btn ghost" id="my-week">Back to this week</button>`}</section>
-    <button class="tile myshifts-tile" id="my-shifts"><span class="tile-h">My shifts</span><span class="muted small">${list.length ? `${list.length} shift${list.length === 1 ? "" : "s"} · tap to see logs and fix entries` : "No shifts in these dates"}</span></button>`;
+    <button class="tile myshifts-tile" id="my-shifts"><span class="tile-h">My Shifts &amp; Logs</span><span class="muted" style="font-size:17px;font-weight:600">${list.length ? `${list.length} shift${list.length === 1 ? "" : "s"} · tap to see logs and fix entries` : "No shifts in these dates"}</span></button>`;
 }
 function myShiftRow(r) { const ms = (r.ended ? new Date(r.ended) : Date.now()) - new Date(r.started);
   return `<div class="shiftrow" data-myshift="${r.id}" role="button" tabindex="0"><div><b>${md(r.started)}</b> · in ${hm(r.started)} · ${r.ended ? "out " + hm(r.ended) : '<b style="color:var(--ok)">on now</b>'}</div><div class="small">Time worked: <b>${dur(ms)}</b></div>${r.note ? `<div class="small" style="white-space:pre-wrap">Note: ${esc(r.note)}</div>` : ""}<div class="small" style="font-weight:700;color:var(--accent)">View log ›</div></div>`; }
 function openMyShifts() {
   const list = UI.mine || [];
-  modal(`<h2>My shifts</h2><div class="muted small" style="margin-top:-8px">Tap a shift to see its log and fix an entry.</div>
+  modal(`<h2>My Shifts &amp; Logs</h2><div class="muted small" style="margin-top:-8px">Tap a shift to see its log and fix an entry.</div>
     ${list.length ? `<div class="shiftlist flat">${list.map(myShiftRow).join("")}</div>` : `<p class="muted" style="margin:0">No shifts in these dates.</p>`}
     <button class="btn ghost block" id="cancel">Close</button>`, t => { const r = t.closest("[data-myshift]"); if (r) openShiftLog(AUTH.name, r.dataset.myshift, true, openMyShifts); });
 }
