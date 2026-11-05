@@ -435,6 +435,7 @@ function openClearCheck(pid, part) {
       <button class="btn salt block" id="cl-save">Check off with note</button></div>
     <button class="btn ghost block" id="cancel">Cancel</button>`, (x, close) => {
     const go = note => { close(); if (!DATA.storm || DATA.storm.id !== storm.id) return;
+      if (!DATA.run) send("start_run", { id: uuid(), ts: nowIso() });
       send("clear", { storm_id: storm.id, prop_id: pid, part, checked: true, note, ts: nowIso() }); toast(note ? "Checked off with note" : "Checked off"); };
     if (x.id === "cl-yes") go("");
     else if (x.id === "cl-no") { document.getElementById("cl-note-wrap").hidden = false; document.getElementById("cl-note").focus(); }
