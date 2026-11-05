@@ -453,7 +453,7 @@ function viewCrew() {
   const on = list.filter(live), off = list.filter(x => !live(x)).slice(0, 20);
   const row = x => { const run = runs.find(r => r.crew.trim().toLowerCase() === x.name.trim().toLowerCase()); const here = x.here && PROPS[x.here] ? PROPS[x.here].addr : null;
     const isOn = live(x);
-    return `<div class="runitem" data-crew="${esc(x.name)}" role="button" tabindex="0"><div style="min-width:0"><b>${esc(x.name)}</b>${x.role === "owner" ? ' <span class="muted small">owner</span>' : ""}
+    return `<div class="runitem" data-crew="${esc(x.name)}" role="button" tabindex="0"><div style="min-width:0"><b>${esc(x.name)}</b>
       <div class="muted small">Signed in ${fmtWhen(x.signed_in)}${x.signed_out ? ` · signed out ${fmtWhen(x.signed_out)}` : ` · last seen ${fmtWhen(x.last_seen)}`}</div>
       ${run && isOn ? `<div class="small" style="color:var(--ok);font-weight:600">On the clock · ${run.stops} stop${run.stops === 1 ? "" : "s"}${here ? ` · at ${esc(here)}` : ""}</div>` : ""}</div>
       <span class="chev">${isOn ? '<span class="dot"></span>' : ""}›</span></div>`; };
