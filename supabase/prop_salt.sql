@@ -1,4 +1,4 @@
--- Recent saltings at one property by anyone (last 18 hours), so a crew on site
+-- Recent saltings at one property by anyone (last 24 hours), so a crew on site
 -- can see what others already did there. Any valid PIN can read.
 create or replace function prop_salt(p_name text, p_pin text, p_action text, p_data jsonb default '{}'::jsonb)
 returns jsonb
@@ -18,7 +18,7 @@ begin
   return (select coalesce(jsonb_agg(jsonb_build_object('id', e.id, 'prop_id', e.prop_id, 'area', e.area, 'amt', e.amt,
             'note', e.note, 'crew', e.crew, 'ts', e.ts) order by e.ts), '[]')
           from salt_entries e
-          where e.prop_id = p_data->>'prop_id' and e.ts > now() - interval '18 hours');
+          where e.prop_id = p_data->>'prop_id' and e.ts > now() - interval '24 hours');
 end;
 $$;
 

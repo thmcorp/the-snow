@@ -325,7 +325,7 @@ function viewRun() {
         if (!all.length) return "";
         const chip = e => { const txt = `${e.area === "drives" ? "Parking Lot(s)" : "Walks"} · ${hm(e.ts)} · ${amtWord(e.amt)} · ${esc(e.own ? AUTH.name : e.crew)}`;
           return e.own ? `<button class="entry" data-entry="${e.id}">${txt}</button>` : `<span class="entry other" title="Logged by ${esc(e.crew)}">${txt}</span>`; };
-        return `${others.length ? `<div class="muted small" style="font-weight:600">Salted here in the last 18 hours</div>` : ""}${twoCol(...["drives", "walks"].map(a => all.filter(e => (e.area === "drives") === (a === "drives")).map(chip)), !here.walks)}`; })()}
+        return `${others.length ? `<div class="muted small" style="font-weight:600">Salted in Last 24 Hours</div>` : ""}${twoCol(...["drives", "walks"].map(a => all.filter(e => (e.area === "drives") === (a === "drives")).map(chip)), !here.walks)}`; })()}
       <div class="acts" style="${here.walks ? "" : "grid-template-columns:1fr"}">
         <button class="btn salt huge" data-salted="drives">Salted Parking Lot(s)</button>
         ${here.walks ? `<button class="btn walk huge" data-salted="walks">Salted Walkways</button>` : ""}
