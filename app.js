@@ -725,7 +725,7 @@ function openEdit(e, onDone, onCancel) {
   const p = PROPS[e.prop_id]; let amt = +e.amt; const presets = [[1, "Full"], [0.5, "Half"]];
   const isPreset = presets.some(x => x[0] === amt);
   modal(`<div class="muted small" style="text-transform:uppercase;letter-spacing:.08em;font-weight:700">Fix ${e.area === "drives" ? "parking lot(s)" : "walkways"}</div><h2>${esc(p ? p.addr : e.prop_id)}</h2>
-    <div class="amts" style="grid-template-columns:repeat(3,1fr)">${presets.map(([v, l]) => `<button class="amt${amt === v ? " on" : ""}" data-amt="${v}">${l}</button>`).join("")}<button class="amt${isPreset ? "" : " on"}" data-amt="other">Custom</button></div>
+    <div class="amts fixamts" style="grid-template-columns:repeat(3,1fr)">${presets.map(([v, l]) => `<button class="amt${amt === v ? " on" : ""}" data-amt="${v}">${l}</button>`).join("")}<button class="amt${isPreset ? "" : " on"}" data-amt="other">Custom</button></div>
     <label class="f" for="amt-other" id="other-wrap" ${isPreset ? "hidden" : ""}>Fraction<input type="number" id="amt-other" step="0.05" min="0.05" max="1" value="${isPreset ? "" : amt}" inputmode="decimal"></label>
     <label class="f" for="note">Note<input type="text" id="note" value="${esc(e.note || "")}"></label>
     <button class="btn yes block" id="save-entry">Save changes</button>

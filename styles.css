@@ -248,3 +248,6 @@ body{padding-bottom:calc(110px + env(safe-area-inset-bottom,0px))}
 /* Cancel / Close / Back in pop-ups: solid blue */
 .sheet :is(#cancel,#edit-cancel,#fe-cancel,#shift-back,#sure-no).btn{background:#6b7785;color:#fff;border-color:#6b7785}
 .sheetline{border:0;border-top:1px solid var(--line);margin:4px 0;width:100%}
+/* Fix-salting amounts look like fill-up yard picks: blue, chosen = orange with outline */
+.fixamts .amt{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-size:17px;min-height:54px;justify-content:center}
+.fixamts .amt.on{background:var(--salt);color:var(--salt-ink);border-color:var(--salt);outline:4px solid var(--ink);outline-offset:2px}
