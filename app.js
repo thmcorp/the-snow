@@ -115,13 +115,18 @@ async function flush() {
   } finally { UI.flushing = false; }
   if (!OUTBOX.length) refresh();
 }
+function loadPropSalt(pid) {
+  if (!pid || !AUTH) return;
+  rpc("recent", { prop_id: pid }, "prop_salt").then(l => { if (UI.here !== pid) return; const k = JSON.stringify(l || []);
+    if (k !== JSON.stringify(UI.propSalt || [])) { UI.propSalt = l || []; UI.propSaltFor = pid; render(); } }).catch(() => {});
+}
 function loadMaps() { rpc("list", {}, "site_map").then(l => { const k = JSON.stringify(l || []); if (k !== JSON.stringify(UI.maps || [])) { UI.maps = l || []; LS.set("maps", UI.maps); render(); } }).catch(() => {}); }
 async function refresh() {
   if (!AUTH) return;
   try {
     const st = await rpc("state", { session: AUTH.session, here: UI.here || null });
     DATA = st; OUTBOX.forEach(applyLocal); LS.set("data", DATA);
-    loadMaps();
+    loadMaps(); loadPropSalt(UI.here);
     if (AUTH.role !== st.role) { AUTH.role = st.role; LS.set("auth", AUTH); }
     setOnline(true);
     if (AUTH.role === "owner" && UI.tab === "logs") await loadOwnerData();
@@ -314,7 +319,13 @@ function viewRun() {
   const arrival = here ? `<section class="arrive saltcard"><div class="apphead">Salt Applications</div>
       ${gpsLine(true)}
       <div><div class="addr-big">${esc(here.addr)}</div>${here.client ? `<div class="client">${esc(here.client)}</div>` : ""}</div>
-      ${hereLogged.length ? twoCol(...["drives", "walks"].map(a => hereLogged.filter(e => (e.area === "drives") === (a === "drives")).map(e => `<button class="entry" data-entry="${e.id}">${e.area === "drives" ? "Parking Lot(s)" : "Walks"} · ${hm(e.ts)} · ${amtWord(e.amt)}</button>`)), !here.walks) : ""}
+      ${(() => { const ownIds = new Set(hereLogged.map(e => e.id)), me = AUTH.name.trim().toLowerCase();
+        const others = (UI.propSaltFor === here.id ? UI.propSalt || [] : []).filter(e => !ownIds.has(e.id));
+        const all = hereLogged.map(e => ({ ...e, own: true })).concat(others.map(e => ({ ...e, own: false }))).sort((a, b) => a.ts.localeCompare(b.ts));
+        if (!all.length) return "";
+        const chip = e => { const txt = `${e.area === "drives" ? "Parking Lot(s)" : "Walks"} · ${hm(e.ts)} · ${amtWord(e.amt)} · ${esc(e.own ? AUTH.name : e.crew)}`;
+          return e.own ? `<button class="entry" data-entry="${e.id}">${txt}</button>` : `<span class="entry other">${txt}</span>`; };
+        return `${others.length ? `<div class="muted small" style="font-weight:600">Salted here in the last 18 hours</div>` : ""}${twoCol(...["drives", "walks"].map(a => all.filter(e => (e.area === "drives") === (a === "drives")).map(chip)), !here.walks)}`; })()}
       <div class="acts" style="${here.walks ? "" : "grid-template-columns:1fr"}">
         <button class="btn salt huge" data-salted="drives">Salted Parking Lot(s)</button>
         ${here.walks ? `<button class="btn walk huge" data-salted="walks">Salted Walkways</button>` : ""}
@@ -505,7 +516,7 @@ function render() {
 // ---------- actions ----------
 function toast(msg) { const t = document.getElementById("toast"); t.textContent = msg; t.hidden = false; clearTimeout(toast._t); toast._t = setTimeout(() => t.hidden = true, 2800); }
 function arriveAt(pid, auto) {
-  UI.here = pid; LS.set("here", pid); UI.hereAuto = !!auto; LS.set("hereAuto", !!auto);
+  UI.here = pid; LS.set("here", pid); UI.propSalt = []; UI.propSaltFor = pid; loadPropSalt(pid); UI.hereAuto = !!auto; LS.set("hereAuto", !!auto);
   render(); toTop();
   if (auto && navigator.vibrate) navigator.vibrate(200);
   refresh();
