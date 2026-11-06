@@ -711,7 +711,7 @@ function openFillEdit(f, onDone, onCancel) {
     ${bags ? `<label class="f" for="fe-bags">How many bags?<select id="fe-bags">${Array.from({ length: 50 }, (_, i) => i + 1).map(i => `<option value="${i}" ${i === +n ? "selected" : ""}>${i}</option>`).join("")}</select></label>` : ""}
     <div class="muted small" style="font-weight:600">From which Storage Facility?</div>
     <div class="locs small-locs">${yards.map(l => `<button class="btn walk${l === yard ? " picked" : ""}" data-feyard="${l}">${l}</button>`).join("")}</div>
-    <button class="btn salt block" id="fe-save">Save changes</button>
+    <hr class="sheetline"><button class="btn yes block" id="fe-save">Save changes</button>
     <div class="row"><button class="btn bad" id="fe-del">Remove fill-up</button><button class="btn ghost" id="${onCancel ? "fe-cancel" : "cancel"}">Cancel</button></div>`, (t, close) => {
       const y = t.closest("[data-feyard]"); if (y) { if (bags) n = document.getElementById("fe-bags").value; yard = y.dataset.feyard; draw(); return; }
       if (t.id === "fe-cancel") { onCancel(); return; }
@@ -728,7 +728,7 @@ function openEdit(e, onDone, onCancel) {
     <div class="amts" style="grid-template-columns:repeat(3,1fr)">${presets.map(([v, l]) => `<button class="amt${amt === v ? " on" : ""}" data-amt="${v}">${l}</button>`).join("")}<button class="amt${isPreset ? "" : " on"}" data-amt="other">Custom</button></div>
     <label class="f" for="amt-other" id="other-wrap" ${isPreset ? "hidden" : ""}>Fraction<input type="number" id="amt-other" step="0.05" min="0.05" max="1" value="${isPreset ? "" : amt}" inputmode="decimal"></label>
     <label class="f" for="note">Note<input type="text" id="note" value="${esc(e.note || "")}"></label>
-    <button class="btn salt block" id="save-entry">Save changes</button>
+    <button class="btn yes block" id="save-entry">Save changes</button>
     <div class="row"><button class="btn bad" id="del-entry">Remove entry</button><button class="btn ghost" id="${onCancel ? "edit-cancel" : "cancel"}">Cancel</button></div>`, (t, close) => {
     if (t.id === "edit-cancel") { onCancel(); return; }
     const ab = t.closest("[data-amt]");

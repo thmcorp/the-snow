@@ -247,3 +247,4 @@ body{padding-bottom:calc(110px + env(safe-area-inset-bottom,0px))}
 .sheet .tapped{opacity:.45;transition:opacity .08s}
 /* Cancel / Close / Back in pop-ups: solid blue */
 .sheet :is(#cancel,#edit-cancel,#fe-cancel,#shift-back,#sure-no).btn{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.sheetline{border:0;border-top:1px solid var(--line);margin:4px 0;width:100%}
