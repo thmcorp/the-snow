@@ -240,8 +240,7 @@ function gpsLine(onSite) {
 
 // ---------- views ----------
 function propSelect() {
-  const done = new Set((DATA.entries || []).map(a => a.prop_id));
-  return `<label class="f bigpick" for="pick-prop">Or choose a property<select id="pick-prop"><option value="">Select a property…</option>${ROUTES.map(r => `<optgroup label="${esc(r.name)}">${r.props.map(p => `<option value="${p.id}" ${p.id === UI.here ? "selected" : ""}>${done.has(p.id) ? "✓ " : ""}${esc(p.addr)}</option>`).join("")}</optgroup>`).join("")}</select></label>`;
+  return `<label class="f bigpick" for="pick-prop">Or choose a property<select id="pick-prop"><option value="">Select a property…</option>${ROUTES.map(r => `<optgroup label="${esc(r.name)}">${r.props.map(p => `<option value="${p.id}" ${p.id === UI.here ? "selected" : ""}>${esc(p.addr)}</option>`).join("")}</optgroup>`).join("")}</select></label>`;
 }
 function fillCard() {
   const mine = DATA.run ? (DATA.fills || []).filter(x => new Date(x.ts) >= new Date(DATA.run.started) - 1000).sort((a, b) => a.ts.localeCompare(b.ts)) : [];
