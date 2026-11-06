@@ -230,7 +230,7 @@ function gpsIcon(state) {
 function gpsLine(onSite) {
   const n = allProps().filter(p => p.lat != null).length;
   const viaGps = UI.gps.status === "on" && (UI.hereAuto ?? LS.get("hereAuto"));
-  if (onSite) return `<div class="gps">${gpsIcon(viaGps ? "on" : "off")}You're on site${viaGps ? "" : " · GPS off"}</div>`;
+  if (onSite) return `<div class="gps">${gpsIcon(viaGps ? "on" : "off")}${viaGps ? "You're on site" : "Site manually picked · GPS off"}</div>`;
   const msg = UI.gps.status === "denied" ? "GPS is blocked. Allow location for this app in your phone settings, or pick a property below."
     : UI.gps.status === "none" ? "This phone has no GPS. Pick a property below."
     : !n ? "Property locations aren't set up yet. Pick a property below."
