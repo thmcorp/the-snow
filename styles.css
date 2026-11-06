@@ -246,5 +246,5 @@ body{padding-bottom:calc(110px + env(safe-area-inset-bottom,0px))}
 /* Tapped option in a pop-up: outline + check so it's clear what was picked */
 .sheet .tapped{opacity:.45;transition:opacity .08s}
 /* Cancel / Close / Back in pop-ups: solid blue */
-.sheet :is(#cancel,#edit-cancel,#fe-cancel,#shift-back,#sure-no).btn{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.sheet :is(#cancel,#edit-cancel,#fe-cancel,#shift-back,#sure-no).btn{background:#6b7785;color:#fff;border-color:#6b7785}
 .sheetline{border:0;border-top:1px solid var(--line);margin:4px 0;width:100%}
