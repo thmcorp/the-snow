@@ -760,13 +760,13 @@ async function signIn() {
     const r = await rpc("login", { session: AUTH.session }); AUTH.role = r.role;
     DATA = await rpc("state", { session: AUTH.session });
     LS.set("auth", AUTH); LS.set("data", DATA); LS.set("lastName", name);
-    UI.tab = "home"; LS.set("tab", "home"); UI.here = null; LS.del("here"); buildRoutes(); render(); startGps(); loadMaps();
+    UI.tab = "home"; LS.set("tab", "home"); UI.here = null; UI.report = null; UI.mine = null; UI.ownerData = null; LS.del("here"); buildRoutes(); render(); startGps(); loadMaps();
   } catch (e) {
     AUTH = null; btn.disabled = false; btn.textContent = "Sign in";
     toast(e.code === "bad_pin" ? "That PIN isn't right." : e.code === "network" ? "No signal. Try again when you have service." : e.code === "config" ? "The app isn't connected to its database yet." : "Couldn't sign in (" + e.code + ").");
   }
 }
-function signOutLocal(msg) { AUTH = null; DATA = null; OUTBOX = []; LS.del("auth"); LS.del("data"); LS.set("outbox", []); LS.del("here"); UI.here = null; UI.ownerData = null; UI.mine = null; UI.myFrom = null; render(); setOnline(UI.online); if (msg) toast(msg); }
+function signOutLocal(msg) { AUTH = null; DATA = null; OUTBOX = []; LS.del("auth"); LS.del("data"); LS.set("outbox", []); LS.del("here"); UI.here = null; UI.report = null; UI.openLog = null; UI.dirProp = null; UI.ownerData = null; UI.mine = null; UI.myFrom = null; render(); setOnline(UI.online); if (msg) toast(msg); }
 async function geocodeMissing(btn) {
   const missing = allProps().filter(p => p.lat == null); if (!missing.length) { toast("Every property already has a location."); return; }
   btn.disabled = true; let found = 0;
