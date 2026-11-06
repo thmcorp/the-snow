@@ -301,7 +301,7 @@ function viewRun() {
   const run = DATA.run;
   const here = UI.here ? PROPS[UI.here] : null;
   if (!run && !here) {
-    return `<section class="arrive waiting saltcard"><div class="apphead">Salt Applications</div>${gpsLine(false)}<div class="muted small">Clock in on Home. If you forget, you're clocked in automatically when you log your first salting.</div>${propSelect()}</section>${fillCard()}`;
+    return `<section class="arrive waiting saltcard"><div class="apphead">Salt Applications</div>${gpsLine(false)}<div class="pickdiv">${propSelect()}</div></section>${fillCard()}`;
   }
   const mine = DATA.entries || [];
   const stops = new Set(mine.map(a => a.prop_id)).size, total = allProps().length;
