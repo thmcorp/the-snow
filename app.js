@@ -683,7 +683,7 @@ function openClearCheck(pid, part) {
 function openQuick(pid, area) {
   const p = PROPS[pid];
   modal(`<div class="muted small" style="text-transform:uppercase;letter-spacing:.08em;font-weight:700">${area === "drives" ? "Parking Lot(s)" : "Walkways"}</div><h2 style="margin-top:-8px">How much?</h2><div class="muted small" style="margin-top:-8px">${esc(p.addr)}</div>
-    <div class="qgrid"><button class="btn salt huge" data-q="1">Full</button><button class="btn salt huge" data-q="0.5">Half</button><button class="btn ghost huge" data-q="custom">Custom</button></div>
+    <div class="qgrid"><button class="btn salt huge" data-q="1">Full</button><button class="btn salt huge" data-q="0.5">Half</button><button class="btn salt huge" data-q="custom">Custom</button></div>
     <div id="custom-wrap" hidden><div class="row"><label class="f" for="q-other">Fraction<input type="number" id="q-other" step="0.05" min="0.05" max="1" placeholder=".3" inputmode="decimal"></label><button class="btn salt" id="q-log" style="align-self:end">Log it</button></div></div>
     <details><summary class="muted small">Add a note</summary><input type="text" id="q-note" placeholder="e.g. back, extra removal time" style="margin-top:8px"></details>
     <button class="btn ghost block" id="cancel">Cancel</button>`, (t, close) => {
