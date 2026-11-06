@@ -229,7 +229,8 @@ function gpsIcon(state) {
 }
 function gpsLine(onSite) {
   const n = allProps().filter(p => p.lat != null).length;
-  if (onSite) return `<div class="gps">${gpsIcon(UI.gps.status === "on" ? "on" : "off")}You're on site${UI.gps.status === "on" ? "" : " · GPS off"}</div>`;
+  const viaGps = UI.gps.status === "on" && (UI.hereAuto ?? LS.get("hereAuto"));
+  if (onSite) return `<div class="gps">${gpsIcon(viaGps ? "on" : "off")}You're on site${viaGps ? "" : " · GPS off"}</div>`;
   const msg = UI.gps.status === "denied" ? "GPS is blocked. Allow location for this app in your phone settings, or pick a property below."
     : UI.gps.status === "none" ? "This phone has no GPS. Pick a property below."
     : !n ? "Property locations aren't set up yet. Pick a property below."
@@ -500,7 +501,7 @@ function render() {
 // ---------- actions ----------
 function toast(msg) { const t = document.getElementById("toast"); t.textContent = msg; t.hidden = false; clearTimeout(toast._t); toast._t = setTimeout(() => t.hidden = true, 2800); }
 function arriveAt(pid, auto) {
-  UI.here = pid; LS.set("here", pid);
+  UI.here = pid; LS.set("here", pid); UI.hereAuto = !!auto; LS.set("hereAuto", !!auto);
   render(); toTop();
   if (auto && navigator.vibrate) navigator.vibrate(200);
   refresh();
