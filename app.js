@@ -321,10 +321,10 @@ function viewRun() {
       <div><div class="addr-big">${esc(here.addr)}</div>${here.client ? `<div class="client">${esc(here.client)}</div>` : ""}</div>
       ${(() => { const ownIds = new Set(hereLogged.map(e => e.id)), me = AUTH.name.trim().toLowerCase();
         const others = (UI.propSaltFor === here.id ? UI.propSalt || [] : []).filter(e => !ownIds.has(e.id));
-        const all = hereLogged.map(e => ({ ...e, own: true })).concat(others.map(e => ({ ...e, own: false }))).sort((a, b) => a.ts.localeCompare(b.ts));
+        const all = hereLogged.map(e => ({ ...e, own: true })).concat(others.map(e => ({ ...e, own: (e.crew || "").trim().toLowerCase() === me }))).sort((a, b) => a.ts.localeCompare(b.ts));
         if (!all.length) return "";
         const chip = e => { const txt = `${e.area === "drives" ? "Parking Lot(s)" : "Walks"} · ${hm(e.ts)} · ${amtWord(e.amt)} · ${esc(e.own ? AUTH.name : e.crew)}`;
-          return e.own ? `<button class="entry" data-entry="${e.id}">${txt}</button>` : `<span class="entry other">${txt}</span>`; };
+          return e.own ? `<button class="entry" data-entry="${e.id}">${txt}</button>` : `<span class="entry other" title="Logged by ${esc(e.crew)}">${txt}</span>`; };
         return `${others.length ? `<div class="muted small" style="font-weight:600">Salted here in the last 18 hours</div>` : ""}${twoCol(...["drives", "walks"].map(a => all.filter(e => (e.area === "drives") === (a === "drives")).map(chip)), !here.walks)}`; })()}
       <div class="acts" style="${here.walks ? "" : "grid-template-columns:1fr"}">
         <button class="btn salt huge" data-salted="drives">Salted Parking Lot(s)</button>
@@ -835,7 +835,7 @@ app.addEventListener("click", ev => {
   if (t.dataset.maprm) { const id = t.dataset.maprm; confirmBox("Remove this site map?", "Crews will no longer see it.", "Remove", () => rpc("remove", { prop_id: id }, "site_map").then(() => { UI.maps = (UI.maps || []).filter(x => x !== id); LS.set("maps", UI.maps); toast("Site map removed"); render(); }).catch(() => toast("Couldn't remove. Check your signal."))); return; }
   if (t.closest && t.closest("[data-maps]")) { openMaps(t.closest("[data-maps]").dataset.maps); return; }
   if (t.dataset.lognote) { openLogNote(t.dataset.lognote); return; }
-  if (t.dataset.entry) { const e = DATA.entries.find(a => a.id === t.dataset.entry); if (e) openEdit(e); return; }
+  if (t.dataset.entry) { const e = DATA.entries.find(a => a.id === t.dataset.entry) || (UI.propSalt || []).find(a => a.id === t.dataset.entry && (a.crew || "").trim().toLowerCase() === AUTH.name.trim().toLowerCase()); if (e) openEdit(e, () => loadPropSalt(UI.here)); return; }
   if (t.id === "finish") { openEndShift(); return; }
   if (t.id === "new-run") { UI.report = null; render(); return; }
   if (t.id === "start-run") { if (!DATA.run) send("start_run", { id: uuid(), ts: nowIso() }); startGps(); render(); toast("You're on the clock"); return; }

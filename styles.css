@@ -256,4 +256,4 @@ body{padding-bottom:calc(110px + env(safe-area-inset-bottom,0px))}
 .logcols>div{display:flex;flex-direction:column;gap:6px;min-width:0}
 .logcols .entry{text-align:center;width:100%}
 .propitem .logpad{padding:0 14px 6px}
-.entry.other{display:block;text-align:center}
+.entry.other{display:block;text-align:center;background:var(--bg);color:var(--muted);border:1px solid var(--line);cursor:default}
