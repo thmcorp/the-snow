@@ -255,3 +255,4 @@ body{padding-bottom:calc(110px + env(safe-area-inset-bottom,0px))}
 .logcols.one{grid-template-columns:1fr}
 .logcols>div{display:flex;flex-direction:column;gap:6px;min-width:0}
 .logcols .entry{text-align:center;width:100%}
+.propitem .logpad{padding:0 14px 6px}
