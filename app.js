@@ -224,17 +224,17 @@ function startGps() {
 }
 function gpsIcon(state) {
   const arrow = '<path d="M21 3 3 10.5l7.5 2.9L13.4 21z" fill="currentColor" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>';
-  const x = state === "off" ? '<circle cx="18" cy="18" r="6" fill="#c62828" stroke="#fff" stroke-width="1.5"/><path d="m15.6 15.6 4.8 4.8m0-4.8-4.8 4.8" stroke="#fff" stroke-width="2" stroke-linecap="round"/>' : "";
+  const x = state === "off" ? '<path d="M2 2 22 22M22 2 2 22" stroke="var(--surface)" stroke-width="3.4" stroke-linecap="round"/><path d="M2 2 22 22M22 2 2 22" stroke="#c62828" stroke-width="2" stroke-linecap="round"/>' : "";
   return `<svg class="gpsico ${state}" viewBox="0 0 24 24" aria-hidden="true">${arrow}${x}</svg>`;
 }
 function gpsLine(onSite) {
   const n = allProps().filter(p => p.lat != null).length;
-  if (onSite) return `<div class="gps">${gpsIcon(UI.gps.status === "on" ? "on" : "off")}You're on site</div>`;
+  if (onSite) return `<div class="gps">${gpsIcon(UI.gps.status === "on" ? "on" : "off")}You're on site${UI.gps.status === "on" ? "" : " · GPS off"}</div>`;
   const msg = UI.gps.status === "denied" ? "GPS is blocked. Allow location for this app in your phone settings, or pick a property below."
     : UI.gps.status === "none" ? "This phone has no GPS. Pick a property below."
     : !n ? "Property locations aren't set up yet. Pick a property below."
     : "The next stop opens by itself when the truck pulls onto a property.";
-  return `<div class="gps">${gpsIcon(UI.gps.status === "on" ? "on" : UI.gps.status === "waiting" ? "wait" : "off")}GPS: ${UI.gps.status === "on" ? "driving" : UI.gps.status === "waiting" ? "finding you…" : "off"}</div><div class="muted">${msg}</div>`;
+  return `<div class="gps">${gpsIcon(UI.gps.status === "on" ? "on" : UI.gps.status === "waiting" ? "wait" : "off")}GPS ${UI.gps.status === "on" ? "on · driving" : UI.gps.status === "waiting" ? "· finding you…" : "off"}</div><div class="muted">${msg}</div>`;
 }
 
 // ---------- views ----------
