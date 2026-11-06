@@ -782,7 +782,7 @@ const app = document.getElementById("app");
 app.addEventListener("keydown", ev => { if (ev.key === "Enter" && (ev.target.id === "login-name" || ev.target.id === "login-pin")) signIn(); });
 app.addEventListener("change", ev => {
   const t = ev.target;
-  if (t.id === "pick-prop" && t.value) { arriveAt(t.value); return; }
+  if (t.id === "pick-prop") { if (t.value) arriveAt(t.value); else { UI.here = null; UI.hereAuto = false; LS.del("here"); LS.set("hereAuto", false); render(); } return; }
   if (t.id === "dir-prop") { UI.dirProp = t.value || null; render(); return; }
   if (t.id === "my-from" || t.id === "my-to") { UI[t.id === "my-from" ? "myFrom" : "myTo"] = t.value; UI.mine = null; UI.mineErr = false; render(); return; }
   if (t.id === "from" || t.id === "to") { UI[t.id] = t.value; UI.ownerData = null; render(); return; }
