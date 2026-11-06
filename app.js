@@ -242,12 +242,17 @@ function gpsLine(onSite) {
 function propSelect() {
   return `<label class="f bigpick" for="pick-prop">Or choose a property<select id="pick-prop"><option value="">Select a property…</option>${ROUTES.map(r => `<optgroup label="${esc(r.name)}">${r.props.map(p => `<option value="${p.id}" ${p.id === UI.here ? "selected" : ""}>${esc(p.addr)}</option>`).join("")}</optgroup>`).join("")}</select></label>`;
 }
+// Logged chips in two columns lined up under the two buttons (left / right).
+function twoCol(left, right, single) {
+  if (single) return `<div class="logcols one"><div>${left.concat(right).join("")}</div></div>`;
+  return `<div class="logcols"><div>${left.join("")}</div><div>${right.join("")}</div></div>`;
+}
 function fillCard() {
   const mine = DATA.run ? (DATA.fills || []).filter(x => new Date(x.ts) >= new Date(DATA.run.started) - 1000).sort((a, b) => a.ts.localeCompare(b.ts)) : [];
   return `<section class="arrive fillcard"><div class="gps fillhead">Salt fill-up</div>
     <div class="muted small" style="font-weight:600">Tap when you load the truck.</div>
     <div class="acts"><button class="btn salt huge" data-fill="bulk">Sander</button><button class="btn walk huge" data-fill="bags">Bags</button></div>
-    ${mine.length ? `<div class="muted small" style="font-weight:600">Fill-ups this shift (tap to fix)</div><div class="logged">${mine.map(x => `<button class="entry" data-fillfix="${x.id}">${esc(fillWord(x).replace(/^(Sander|Bags)/, m => m + " · " + hm(x.ts)))}</button>`).join("")}</div>` : ""}
+    ${mine.length ? `<div class="muted small" style="font-weight:600">Fill-ups this shift (tap to fix)</div>${twoCol(...[x => /bulk/.test(x.kind), x => !/bulk/.test(x.kind)].map(f => mine.filter(f).map(x => `<button class="entry" data-fillfix="${x.id}">${esc(fillWord(x).replace(/^(Sander|Bags)/, m => m + " · " + hm(x.ts)))}</button>`)))}` : ""}
   </section>`;
 }
 const mapsQ = p => p.lat != null ? `${p.lat},${p.lng}` : p.addr.replace(/Smtihfield/i, "Smithfield").replace(/\bGW\b/, "George Washington Hwy");
@@ -309,7 +314,7 @@ function viewRun() {
   const arrival = here ? `<section class="arrive saltcard"><div class="apphead">Salt Applications</div>
       ${gpsLine(true)}
       <div><div class="addr-big">${esc(here.addr)}</div>${here.client ? `<div class="client">${esc(here.client)}</div>` : ""}</div>
-      ${hereLogged.length ? `<div class="logged">${hereLogged.map(e => `<button class="entry" data-entry="${e.id}">${e.area === "drives" ? "Parking Lot(s)" : "Walks"} · ${hm(e.ts)} · ${amtWord(e.amt)}</button>`).join("")}</div>` : ""}
+      ${hereLogged.length ? twoCol(...["drives", "walks"].map(a => hereLogged.filter(e => (e.area === "drives") === (a === "drives")).map(e => `<button class="entry" data-entry="${e.id}">${e.area === "drives" ? "Parking Lot(s)" : "Walks"} · ${hm(e.ts)} · ${amtWord(e.amt)}</button>`)), !here.walks) : ""}
       <div class="acts" style="${here.walks ? "" : "grid-template-columns:1fr"}">
         <button class="btn salt huge" data-salted="drives">Salted Parking Lot(s)</button>
         ${here.walks ? `<button class="btn walk huge" data-salted="walks">Salted Walkways</button>` : ""}
