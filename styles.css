@@ -244,5 +244,6 @@ body{padding-bottom:calc(110px + env(safe-area-inset-bottom,0px))}
 @keyframes gpspulse{50%{opacity:.35}}
 .saltcard .gps{gap:8px}
 /* Tapped option in a pop-up: outline + check so it's clear what was picked */
-.sheet .tapped{outline:4px solid var(--ink);outline-offset:3px;filter:brightness(.92)}
-.sheet .btn.tapped::before,.sheet .amt.tapped::before{content:"✓ "}
+.sheet .tapped{opacity:.45;transition:opacity .08s}
+/* Cancel / Close / Back in pop-ups: solid blue */
+.sheet :is(#cancel,#edit-cancel,#fe-cancel,#shift-back,#sure-no).btn{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}

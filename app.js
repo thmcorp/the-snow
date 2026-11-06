@@ -506,7 +506,8 @@ function arriveAt(pid, auto) {
   refresh();
 }
 function modal(html, onClick) { const m = document.getElementById("modal"); m.innerHTML = `<div class="sheet-bg" id="sbg"><div class="sheet" role="dialog">${html}</div></div>`;
-  m.onclick = ev => { const t = ev.target; if (t.id === "sbg" || t.id === "cancel") { m.innerHTML = ""; return; }
+  m.onclick = ev => { const t = ev.target; if (t.id === "sbg") { m.innerHTML = ""; return; }
+    if (t.id === "cancel") { if (m.dataset.busy) return; m.dataset.busy = "1"; t.classList.add("tapped"); setTimeout(() => { delete m.dataset.busy; m.innerHTML = ""; }, 160); return; }
     // Show which option was tapped (outline + check) for a moment before moving on.
     const b = t.closest && t.closest("button");
     if (b && !b.disabled && m.contains(b)) {
@@ -520,6 +521,11 @@ let modalY = 0; const toTop = () => { modalY = 0; window.scrollTo(0, 0); };
   new MutationObserver(() => { const open = !!m.querySelector(".sheet");
     if (open && !locked) { modalY = window.scrollY; locked = true; document.body.style.top = -modalY + "px"; document.body.classList.add("locked"); }
     else if (!open && locked) { locked = false; document.body.classList.remove("locked"); document.body.style.top = ""; window.scrollTo(0, modalY); } }).observe(m, { childList: true }); })();
+function sureRemove(what, onYes, onNo) {
+  modal(`<h2>Are you sure?</h2><p class="muted" style="margin:0">This removes ${what} from the log. It can't be undone.</p>
+    <button class="btn bad block" id="sure-yes">Yes, remove</button><button class="btn ghost block" id="sure-no">No, go back</button>`,
+    (t, close) => { if (t.id === "sure-yes") { close(); onYes(); } else if (t.id === "sure-no") onNo(); });
+}
 function confirmBox(title, body, okLabel, onOk) {
   modal(`<h2>${esc(title)}</h2>${body ? `<p class="muted" style="margin:0">${esc(body)}</p>` : ""}<button class="btn salt block" id="ok">${esc(okLabel)}</button><button class="btn ghost block" id="cancel">Cancel</button>`,
     (t, close) => { if (t.id === "ok") { close(); onOk(); } });
@@ -706,10 +712,10 @@ function openFillEdit(f, onDone, onCancel) {
     <div class="muted small" style="font-weight:600">From which Storage Facility?</div>
     <div class="locs small-locs">${yards.map(l => `<button class="btn walk${l === yard ? " picked" : ""}" data-feyard="${l}">${l}</button>`).join("")}</div>
     <button class="btn salt block" id="fe-save">Save changes</button>
-    <div class="row"><button class="btn ghost" id="fe-del">Remove fill-up</button><button class="btn ghost" id="${onCancel ? "fe-cancel" : "cancel"}">Cancel</button></div>`, (t, close) => {
+    <div class="row"><button class="btn bad" id="fe-del">Remove fill-up</button><button class="btn ghost" id="${onCancel ? "fe-cancel" : "cancel"}">Cancel</button></div>`, (t, close) => {
       const y = t.closest("[data-feyard]"); if (y) { if (bags) n = document.getElementById("fe-bags").value; yard = y.dataset.feyard; draw(); return; }
       if (t.id === "fe-cancel") { onCancel(); return; }
-      if (t.id === "fe-del") { close(); send("fill_delete", { id: f.id }); toast("Fill-up removed"); if (onDone) onDone("delete"); return; }
+      if (t.id === "fe-del") { sureRemove("this fill-up", () => { send("fill_delete", { id: f.id }); toast("Fill-up removed"); if (onDone) onDone("delete"); }, () => openFillEdit(f, onDone, onCancel)); return; }
       if (t.id === "fe-save") { const d = { id: f.id, yard }; if (bags) d.bags = +document.getElementById("fe-bags").value;
         close(); send("fill_edit", d); toast("Fill-up updated"); if (onDone) onDone("edit", d); }
     });
@@ -723,11 +729,11 @@ function openEdit(e, onDone, onCancel) {
     <label class="f" for="amt-other" id="other-wrap" ${isPreset ? "hidden" : ""}>Fraction<input type="number" id="amt-other" step="0.05" min="0.05" max="1" value="${isPreset ? "" : amt}" inputmode="decimal"></label>
     <label class="f" for="note">Note<input type="text" id="note" value="${esc(e.note || "")}"></label>
     <button class="btn salt block" id="save-entry">Save changes</button>
-    <div class="row"><button class="btn ghost" id="del-entry">Remove entry</button><button class="btn ghost" id="${onCancel ? "edit-cancel" : "cancel"}">Cancel</button></div>`, (t, close) => {
+    <div class="row"><button class="btn bad" id="del-entry">Remove entry</button><button class="btn ghost" id="${onCancel ? "edit-cancel" : "cancel"}">Cancel</button></div>`, (t, close) => {
     if (t.id === "edit-cancel") { onCancel(); return; }
     const ab = t.closest("[data-amt]");
     if (ab) { document.querySelectorAll(".amt").forEach(x => x.classList.toggle("on", x === ab)); const o = ab.dataset.amt === "other"; document.getElementById("other-wrap").hidden = !o; if (!o) amt = +ab.dataset.amt; return; }
-    if (t.id === "del-entry") { close(); send("salt_delete", { id: e.id }); toast("Entry removed"); if (onDone) onDone("delete"); return; }
+    if (t.id === "del-entry") { sureRemove("this entry", () => { send("salt_delete", { id: e.id }); toast("Entry removed"); if (onDone) onDone("delete"); }, () => openEdit(e, onDone, onCancel)); return; }
     if (t.id === "save-entry") {
       if (!document.getElementById("other-wrap").hidden) { const v = parseFloat(document.getElementById("amt-other").value); if (!(v > 0 && v <= 1)) { toast("Enter a fraction between .05 and 1"); return; } amt = v; }
       const nd = { id: e.id, amt, note: document.getElementById("note").value.trim(), ts: e.ts }; close(); send("salt_edit", nd); toast("Entry updated"); if (onDone) onDone("edit", nd);
