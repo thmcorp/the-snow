@@ -243,3 +243,6 @@ body{padding-bottom:calc(110px + env(safe-area-inset-bottom,0px))}
 .gpsico.off{color:var(--muted)}
 @keyframes gpspulse{50%{opacity:.35}}
 .saltcard .gps{gap:8px}
+/* Tapped option in a pop-up: outline + check so it's clear what was picked */
+.sheet .tapped{outline:4px solid var(--ink);outline-offset:3px;filter:brightness(.92)}
+.sheet .btn.tapped::before,.sheet .amt.tapped::before{content:"✓ "}

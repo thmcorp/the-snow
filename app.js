@@ -506,7 +506,14 @@ function arriveAt(pid, auto) {
   refresh();
 }
 function modal(html, onClick) { const m = document.getElementById("modal"); m.innerHTML = `<div class="sheet-bg" id="sbg"><div class="sheet" role="dialog">${html}</div></div>`;
-  m.onclick = ev => { const t = ev.target; if (t.id === "sbg" || t.id === "cancel") { m.innerHTML = ""; return; } onClick(t, () => { m.innerHTML = ""; }); }; }
+  m.onclick = ev => { const t = ev.target; if (t.id === "sbg" || t.id === "cancel") { m.innerHTML = ""; return; }
+    // Show which option was tapped (outline + check) for a moment before moving on.
+    const b = t.closest && t.closest("button");
+    if (b && !b.disabled && m.contains(b)) {
+      if (m.dataset.busy) return; m.dataset.busy = "1";
+      m.querySelectorAll(".tapped").forEach(x => x.classList.remove("tapped")); b.classList.add("tapped");
+      setTimeout(() => { delete m.dataset.busy; onClick(t, () => { m.innerHTML = ""; }); b.classList.remove("tapped"); }, 220); return; }
+    onClick(t, () => { m.innerHTML = ""; }); }; }
 // Lock the page behind any open pop-up so only the pop-up scrolls (iPhone-safe).
 let modalY = 0; const toTop = () => { modalY = 0; window.scrollTo(0, 0); };
 (() => { const m = document.getElementById("modal"); if (!m) return; let locked = false;
